@@ -12,7 +12,7 @@ const RUNTIME_FILES = [
 
 function parseArgs(argv) {
   const args = {
-    root: path.resolve(process.cwd()),
+    root: null,
     runtimeSource: null,
   };
 
@@ -38,15 +38,23 @@ function parseArgs(argv) {
     }
   }
 
+  if (!args.root) {
+    throw new Error("--root is required. Pass the target project workspace root, not the okf-rag source repo by accident.");
+  }
+
   return args;
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/setup_okf_rag_workspace.js [--root DIR] [--runtime-source DIR]
+  console.log(`Usage: node scripts/setup_okf_rag_workspace.js --root DIR [--runtime-source DIR]
 
 Creates the local OKF-RAG workspace scaffold and copies the prebuilt runtime
-into okf-rag-workspace/bin when release artifacts are available. Without
---root, DIR defaults to the current working directory, not the script's repo.
+into okf-rag-workspace/bin when release artifacts are available.
+
+--root must be the target project workspace where the current agent is working.
+Do not point it at the okf-rag source repo unless that source repo is the actual
+target workspace.
+
 This script does not create, edit, or validate .codex/config.toml. Codex MCP
 setup is documented in setup-for-agent.md and should be applied manually.`);
 }

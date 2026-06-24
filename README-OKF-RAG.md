@@ -78,7 +78,7 @@ $WORKDIR = (Get-Location).Path
 node scripts/setup_okf_rag_workspace.js --root $WORKDIR
 ```
 
-Without `--root`, the setup script installs into the process current directory. Do not point it at the `okf-rag` source repo unless that repo is the workspace you want to use.
+The setup script refuses to run without `--root`. Do not point `--root` at the `okf-rag` source repo unless that repo is the workspace you want to use.
 
 Without an explicit `SOURCE_DIR`, `ingest` reads `okf-rag-workspace/okfs`.
 

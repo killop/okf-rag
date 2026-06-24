@@ -31,7 +31,7 @@ okf-rag-workspace/bin/zvec_c_api.dll
 
 ```powershell
 cargo build -p okf-rag --release
-node scripts/setup_okf_rag_workspace.js
+node scripts/setup_okf_rag_workspace.js --root .
 ```
 
 本地 zvec Rust binding 和 native runtime 依赖已经放在：
@@ -69,7 +69,7 @@ $WORKDIR = (Get-Location).Path
 node scripts/setup_okf_rag_workspace.js --root $WORKDIR
 ```
 
-不传 `--root` 时，setup 脚本会安装到当前进程目录。不要把它指向 `okf-rag` 源码 repo，除非这个 repo 就是你要使用的 workspace。这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改 `.codex/config.toml`；直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
+setup 脚本不允许省略 `--root`。不要把 `--root` 指向 `okf-rag` 源码 repo，除非这个 repo 就是你要使用的 workspace。这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改 `.codex/config.toml`；直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
 
 ## CLI
 
@@ -224,7 +224,7 @@ cargo fmt
 cargo test -p okf-rag
 cargo clippy -p okf-rag -- -D warnings
 cargo build -p okf-rag --release
-node scripts/setup_okf_rag_workspace.js
+node scripts/setup_okf_rag_workspace.js --root .
 okf-rag-workspace\bin\okf-rag.exe ingest
 okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
 ```

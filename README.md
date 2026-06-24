@@ -33,7 +33,7 @@ okf-rag-workspace/bin/zvec_c_api.dll
 
 ```powershell
 cargo build -p okf-rag --release
-node scripts/setup_okf_rag_workspace.js
+node scripts/setup_okf_rag_workspace.js --root .
 ```
 
 Local zvec Rust bindings and native runtime dependencies are vendored under:
@@ -71,7 +71,7 @@ $WORKDIR = (Get-Location).Path
 node scripts/setup_okf_rag_workspace.js --root $WORKDIR
 ```
 
-Without `--root`, the setup script installs into the process current directory. Do not point it at the `okf-rag` source repo unless that repo is the workspace you want to use. This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
+The setup script refuses to run without `--root`. Do not point `--root` at the `okf-rag` source repo unless that repo is the workspace you want to use. This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
 
 ## CLI
 
@@ -220,7 +220,7 @@ cargo fmt
 cargo test -p okf-rag
 cargo clippy -p okf-rag -- -D warnings
 cargo build -p okf-rag --release
-node scripts/setup_okf_rag_workspace.js
+node scripts/setup_okf_rag_workspace.js --root .
 okf-rag-workspace\bin\okf-rag.exe ingest
 okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
 ```

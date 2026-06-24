@@ -72,7 +72,9 @@ If the setup script lives in a separate cloned `okf-rag` source repo, still inst
 node <OKF_RAG_REPO>\scripts\setup_okf_rag_workspace.js --root $WORKDIR --runtime-source <OKF_RAG_REPO>\target\release
 ```
 
-The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`. Without `--root`, it defaults to the process current directory:
+The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`.
+
+The script refuses to run without `--root`; this is intentional, so an agent cannot accidentally install into the `okf-rag` source repo after reading its README.
 
 ```text
 .okf-rag/
