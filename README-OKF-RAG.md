@@ -21,16 +21,16 @@ okf-rag-workspace/
 Keep `.okf-rag/` as a scaffold, but rebuild its generated runtime state after copying:
 
 ```powershell
-target\release\okf-rag.exe ingest --force
+okf-rag-workspace\bin\okf-rag.exe ingest --force
 ```
 
 Release packages must also include the prebuilt Windows runtime so users do not need to compile Rust:
 
 ```text
-target/release/okf-rag.exe
-target/release/onnxruntime.dll
-target/release/onnxruntime_providers_shared.dll
-target/release/zvec_c_api.dll
+okf-rag-workspace/bin/okf-rag.exe
+okf-rag-workspace/bin/onnxruntime.dll
+okf-rag-workspace/bin/onnxruntime_providers_shared.dll
+okf-rag-workspace/bin/zvec_c_api.dll
 ```
 
 ## Rules
@@ -71,7 +71,7 @@ node scripts/package_okf_rag_release.js
 ```
 
 The generated package does not create or edit `.codex/config.toml`; Codex project-local setup is documented in `setup-for-agent.md`.
-After extracting it elsewhere, run `target\release\okf-rag.exe ingest --force` once to build the local index without compiling.
+After extracting it elsewhere, run `okf-rag-workspace\bin\okf-rag.exe ingest --force` once to build the local index without compiling.
 
 After `git clone`, initialize the local scaffold with:
 
@@ -116,7 +116,7 @@ Full details are in [OKF-RAG-BENCHMARK.md](OKF-RAG-BENCHMARK.md).
 The Rust binary also exposes a stdio MCP server:
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 For Codex, install this MCP entry in the project-local config:
@@ -132,7 +132,7 @@ Copy the template from `.codex/config.toml.example`:
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\target\\release\\okf-rag.exe"
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]
 ```
 
@@ -147,8 +147,8 @@ Available tools:
 `okf-rag mcp` starts a background watcher by default. It polls `okf-rag-workspace/okfs`, waits for changes to stay stable briefly, then runs ingest automatically.
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
-target\release\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
 ```
 
 The derived zvec index uses A/B slots:
@@ -219,7 +219,7 @@ The defaults are batch size `16` and ONNX intra-op threads `4`.
 
 MiniLM tokenization uses batch-longest dynamic padding with a 256-token truncation limit, so short queries do not pay for fixed 256-token ONNX inference.
 
-The future GitHub target is `ai-harnees/okf-rag`.
+The GitHub remote is `killop/okf-rag`.
 
 ## Ignore Policy
 

@@ -28,13 +28,13 @@ Their roles are different:
 - `okf-rag/` is the source repository location. In this prototype, it is a scaffold; the active Rust crate currently lives under `crates/okf-rag/`.
 - `okf-rag-workspace/` is the user workspace and must include demo OKF truth files under `okf-rag-workspace/okfs/`.
 
-For a user-facing release package, also include the prebuilt runtime artifacts so consumers do not need to compile Rust:
+For a user-facing release package, also include the prebuilt runtime artifacts inside the user workspace so consumers do not need to compile Rust:
 
 ```text
-target/release/okf-rag.exe
-target/release/onnxruntime.dll
-target/release/onnxruntime_providers_shared.dll
-target/release/zvec_c_api.dll
+okf-rag-workspace/bin/okf-rag.exe
+okf-rag-workspace/bin/onnxruntime.dll
+okf-rag-workspace/bin/onnxruntime_providers_shared.dll
+okf-rag-workspace/bin/zvec_c_api.dll
 ```
 
 Use the packaging script when publishing:
@@ -46,7 +46,7 @@ node scripts/package_okf_rag_release.js
 After extraction, run the bundled executable once to build the local index:
 
 ```powershell
-target\release\okf-rag.exe ingest --force
+okf-rag-workspace\bin\okf-rag.exe ingest --force
 ```
 
 ## Clone Setup Script
@@ -57,7 +57,7 @@ After `git clone`, initialize the local scaffold:
 node scripts/setup_okf_rag_workspace.js
 ```
 
-The setup script creates only basic directories and missing placeholder Markdown:
+The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`:
 
 ```text
 .okf-rag/
@@ -66,6 +66,7 @@ The setup script creates only basic directories and missing placeholder Markdown
 .codex/config.toml.example
 okf-rag/
 okf-rag-workspace/
+okf-rag-workspace/bin/
 okf-rag-workspace/okfs/
 okf-rag-workspace/okfs/local-first-okf-rag-demo.md
 dist/
@@ -76,7 +77,7 @@ It must not create, edit, or validate the machine-local `.codex/config.toml`. Pr
 After copying the demo or extracting a release package, rebuild the runtime index instead of trusting copied stale state:
 
 ```powershell
-target\release\okf-rag.exe ingest --root . --force
+okf-rag-workspace\bin\okf-rag.exe ingest --root . --force
 ```
 
 The ignore policy should keep source and OKF truth trackable, while ignoring generated runtime files:
@@ -95,6 +96,14 @@ The ignore policy should keep source and OKF truth trackable, while ignoring gen
 ## Install Location
 
 Project-local Codex setup is manual. Setup and packaging scripts must not create, edit, or validate `.codex/config.toml`.
+
+The MCP executable for agents must be the workspace-local binary:
+
+```text
+<WORKDIR>\okf-rag-workspace\bin\okf-rag.exe
+```
+
+Do not point normal agent MCP config at a repository build output such as `target\release\okf-rag.exe`. Build outputs are maintainer artifacts; the workspace-local `bin` directory is the install location agents should use.
 
 If Codex should load this MCP server for the cloned workspace, create the project-local config file yourself:
 
@@ -121,7 +130,7 @@ Preferred project-local TOML uses paths relative to the clone root:
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\target\\release\\okf-rag.exe"
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]
 ```
 
@@ -132,7 +141,7 @@ If your Codex host does not resolve relative paths from the project root, use ab
 Use the release binary when available:
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 Generic stdio MCP config:
@@ -141,8 +150,8 @@ Generic stdio MCP config:
 {
   "mcpServers": {
     "okf-rag": {
-      "command": "<CLONE_ROOT>\\target\\release\\okf-rag.exe",
-      "args": ["mcp", "--root", "<CLONE_ROOT>"]
+      "command": "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "<WORKDIR>"]
     }
   }
 }
@@ -151,7 +160,7 @@ Generic stdio MCP config:
 The MCP server starts a background watcher by default. If the host needs manual indexing only:
 
 ```powershell
-target\release\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
 ```
 
 ## MCP Tools
@@ -225,9 +234,9 @@ Useful state files:
 When MCP is unavailable:
 
 ```powershell
-target\release\okf-rag.exe status
-target\release\okf-rag.exe ingest
-target\release\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
+okf-rag-workspace\bin\okf-rag.exe status
+okf-rag-workspace\bin\okf-rag.exe ingest
+okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
 ```
 
 ## Local Embedding

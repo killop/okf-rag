@@ -101,6 +101,14 @@ function copyDirIfExists(source, destination) {
   fs.cpSync(source, destination, { recursive: true, force: true });
 }
 
+function writeFileIfMissing(filePath, content) {
+  if (fs.existsSync(filePath)) {
+    return;
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, "utf8");
+}
+
 function collectFiles(root) {
   const files = [];
   const stack = [root];
@@ -265,19 +273,13 @@ function main() {
   const distPath = path.join(rootPath, "dist");
   const packageName = `okf-rag-windows-x64-${args.version}`;
   const packagePath = path.join(distPath, packageName);
-  const runtimePath = path.join(packagePath, "target", "release");
+  const runtimePath = path.join(packagePath, "okf-rag-workspace", "bin");
 
   for (const fileName of REQUIRED_RUNTIME_FILES) {
     ensureFileExists(path.join(releasePath, fileName));
   }
 
   fs.rmSync(packagePath, { recursive: true, force: true });
-  fs.mkdirSync(runtimePath, { recursive: true });
-
-  for (const fileName of REQUIRED_RUNTIME_FILES) {
-    fs.copyFileSync(path.join(releasePath, fileName), path.join(runtimePath, fileName));
-  }
-
   for (const fileName of ROOT_FILES) {
     copyFileIfExists(path.join(rootPath, fileName), packagePath);
   }
@@ -289,6 +291,21 @@ function main() {
   for (const dirName of COPY_DIRS) {
     copyDirIfExists(path.join(rootPath, dirName), path.join(packagePath, dirName));
   }
+
+  fs.mkdirSync(runtimePath, { recursive: true });
+  for (const fileName of REQUIRED_RUNTIME_FILES) {
+    fs.copyFileSync(path.join(releasePath, fileName), path.join(runtimePath, fileName));
+  }
+  writeFileIfMissing(
+    path.join(runtimePath, "README.md"),
+    [
+      "# OKF-RAG Runtime",
+      "",
+      "This directory contains the workspace-local executable used by MCP hosts.",
+      "Point MCP `command` at `okf-rag-workspace/bin/okf-rag.exe`.",
+      "",
+    ].join("\n"),
+  );
 
   const metaSource = path.join(rootPath, ".okf-rag");
   const metaDest = path.join(packagePath, ".okf-rag");

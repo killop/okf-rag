@@ -25,16 +25,17 @@ okf-rag-workspace/
 Release packages must also include the prebuilt Windows runtime so users do not need to compile Rust:
 
 ```text
-target/release/okf-rag.exe
-target/release/onnxruntime.dll
-target/release/onnxruntime_providers_shared.dll
-target/release/zvec_c_api.dll
+okf-rag-workspace/bin/okf-rag.exe
+okf-rag-workspace/bin/onnxruntime.dll
+okf-rag-workspace/bin/onnxruntime_providers_shared.dll
+okf-rag-workspace/bin/zvec_c_api.dll
 ```
 
 ## Build
 
 ```powershell
 cargo build -p okf-rag --release
+node scripts/setup_okf_rag_workspace.js
 ```
 
 Local zvec Rust bindings and native runtime dependencies are vendored under:
@@ -53,12 +54,12 @@ When publishing, build once as the maintainer and ship the release binary with i
 node scripts/package_okf_rag_release.js
 ```
 
-The package is written under `dist/` and includes docs, `okf-rag-workspace/`, the `.okf-rag` scaffold, local model files when present, and `target/release/okf-rag.exe`.
+The package is written under `dist/` and includes docs, `okf-rag-workspace/`, the `.okf-rag` scaffold, local model files when present, and `okf-rag-workspace/bin/okf-rag.exe`.
 
 After extracting a package on another machine, build the workspace-local index once with the bundled executable. This does not require Rust or Cargo:
 
 ```powershell
-target\release\okf-rag.exe ingest --force
+okf-rag-workspace\bin\okf-rag.exe ingest --force
 ```
 
 Packaging scripts do not create or edit project-local Codex config. See [setup-for-agent.md](setup-for-agent.md) for the manual Codex MCP config.
@@ -76,12 +77,12 @@ This script creates missing runtime/workspace directories, a demo OKF, and place
 ## CLI
 
 ```powershell
-target\release\okf-rag.exe init
-target\release\okf-rag.exe ingest
-target\release\okf-rag.exe ingest --force
-target\release\okf-rag.exe query "domain driven memory zvec" --top-k 5 --candidate-k 50
-target\release\okf-rag.exe status
-target\release\okf-rag.exe bench data\okf-memory-benchmark\okf-hybrid-20260623-211957\eval.json --top-k 10 --candidate-k 100
+okf-rag-workspace\bin\okf-rag.exe init
+okf-rag-workspace\bin\okf-rag.exe ingest
+okf-rag-workspace\bin\okf-rag.exe ingest --force
+okf-rag-workspace\bin\okf-rag.exe query "domain driven memory zvec" --top-k 5 --candidate-k 50
+okf-rag-workspace\bin\okf-rag.exe status
+okf-rag-workspace\bin\okf-rag.exe bench data\okf-memory-benchmark\okf-hybrid-20260623-211957\eval.json --top-k 10 --candidate-k 100
 ```
 
 Without an explicit `SOURCE_DIR`, `ingest` reads:
@@ -125,7 +126,7 @@ Full details, query-type breakdown, and ONNX thread sweep are in [OKF-RAG-BENCHM
 Start the stdio MCP server:
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 Install the MCP config in the project-local Codex config:
@@ -141,7 +142,7 @@ Copy the template from `.codex/config.toml.example`:
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\target\\release\\okf-rag.exe"
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]
 ```
 
@@ -151,8 +152,8 @@ Generic MCP config:
 {
   "mcpServers": {
     "okf-rag": {
-      "command": "<CLONE_ROOT>\\target\\release\\okf-rag.exe",
-      "args": ["mcp", "--root", "<CLONE_ROOT>"]
+      "command": "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "<WORKDIR>"]
     }
   }
 }
@@ -171,8 +172,8 @@ See [setup-for-agent.md](setup-for-agent.md) for agent-oriented MCP instructions
 `okf-rag mcp` starts a background watcher by default. It watches `okf-rag-workspace/okfs`, debounces changes, rebuilds the inactive A/B slot, and switches active slot only after a successful rebuild.
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
-target\release\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
 ```
 
 Runtime slot state:
@@ -220,8 +221,9 @@ cargo fmt
 cargo test -p okf-rag
 cargo clippy -p okf-rag -- -D warnings
 cargo build -p okf-rag --release
-target\release\okf-rag.exe ingest
-target\release\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
+node scripts/setup_okf_rag_workspace.js
+okf-rag-workspace\bin\okf-rag.exe ingest
+okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
 ```
 
 ## Ignore Policy

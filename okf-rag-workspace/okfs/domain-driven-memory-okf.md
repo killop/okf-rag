@@ -4,13 +4,9 @@ title: Generic Domain-Driven Memory System
 description: OKF and test contract for a reusable domain-driven memory system over arbitrary source repositories and knowledge corpora.
 tags: [domain-memory, okf, zvec, ddd, retrieval]
 timestamp: 2026-06-22T17:36:00+08:00
-nocturne:
-  uri: okf://memory/domain-driven-system
-  disclosure: When designing, validating, or benchmarking a generic domain-driven memory system with OKF-RAG and zvec.
-source_repositories:
-  knowledge_catalog: E:/knowledge-catalog
-  matt_skills: E:/github/matt-skills
-  zvec: E:/github/zvec
+uri: okf://memory/domain-driven-system
+disclosure: When designing, validating, or benchmarking a generic domain-driven memory system with OKF-RAG and zvec.
+source_repositories: [knowledge-catalog, skills, zvec]
 ---
 
 # Generic Domain-Driven Memory OKF

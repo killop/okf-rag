@@ -1,4 +1,4 @@
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\target\\release\\okf-rag.exe"
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]

@@ -23,16 +23,17 @@ okf-rag-workspace/
 正式发布包还必须带上预编译 Windows runtime，避免用户二次编译：
 
 ```text
-target/release/okf-rag.exe
-target/release/onnxruntime.dll
-target/release/onnxruntime_providers_shared.dll
-target/release/zvec_c_api.dll
+okf-rag-workspace/bin/okf-rag.exe
+okf-rag-workspace/bin/onnxruntime.dll
+okf-rag-workspace/bin/onnxruntime_providers_shared.dll
+okf-rag-workspace/bin/zvec_c_api.dll
 ```
 
 ## 构建
 
 ```powershell
 cargo build -p okf-rag --release
+node scripts/setup_okf_rag_workspace.js
 ```
 
 本地 zvec Rust binding 和 native runtime 依赖已经放在：
@@ -51,12 +52,12 @@ third_party/onnxruntime/
 node scripts/package_okf_rag_release.js
 ```
 
-发布包输出到 `dist/`，包含文档、`okf-rag-workspace/`、`.okf-rag` 骨架、本地模型文件（如果存在）以及 `target/release/okf-rag.exe`。
+发布包输出到 `dist/`，包含文档、`okf-rag-workspace/`、`.okf-rag` 骨架、本地模型文件（如果存在）以及 `okf-rag-workspace/bin/okf-rag.exe`。
 
 用户解压到新机器后，用包内 exe 建一次当前目录的本地索引即可，不需要 Rust 或 Cargo：
 
 ```powershell
-target\release\okf-rag.exe ingest --force
+okf-rag-workspace\bin\okf-rag.exe ingest --force
 ```
 
 发布脚本不创建、不修改项目级 Codex 配置。Codex MCP 配置只在 [setup-for-agent.md](setup-for-agent.md) 里说明，由用户或 agent 手动放置。
@@ -74,12 +75,12 @@ node scripts/setup_okf_rag_workspace.js
 ## CLI
 
 ```powershell
-target\release\okf-rag.exe init
-target\release\okf-rag.exe ingest
-target\release\okf-rag.exe ingest --force
-target\release\okf-rag.exe query "domain driven memory zvec" --top-k 5 --candidate-k 50
-target\release\okf-rag.exe status
-target\release\okf-rag.exe bench data\okf-memory-benchmark\okf-hybrid-20260623-211957\eval.json --top-k 10 --candidate-k 100
+okf-rag-workspace\bin\okf-rag.exe init
+okf-rag-workspace\bin\okf-rag.exe ingest
+okf-rag-workspace\bin\okf-rag.exe ingest --force
+okf-rag-workspace\bin\okf-rag.exe query "domain driven memory zvec" --top-k 5 --candidate-k 50
+okf-rag-workspace\bin\okf-rag.exe status
+okf-rag-workspace\bin\okf-rag.exe bench data\okf-memory-benchmark\okf-hybrid-20260623-211957\eval.json --top-k 10 --candidate-k 100
 ```
 
 不传 `SOURCE_DIR` 时，`ingest` 默认读取：
@@ -123,7 +124,7 @@ Ingest benchmark：
 启动 stdio MCP server：
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 安装 MCP 配置时，默认写到当前项目的 Codex 配置：
@@ -145,7 +146,7 @@ C:\Users\<USER>\.codex\config.toml
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\target\\release\\okf-rag.exe"
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]
 ```
 
@@ -155,8 +156,8 @@ args = ["mcp", "--root", "."]
 {
   "mcpServers": {
     "okf-rag": {
-      "command": "<CLONE_ROOT>\\target\\release\\okf-rag.exe",
-      "args": ["mcp", "--root", "<CLONE_ROOT>"]
+      "command": "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "<WORKDIR>"]
     }
   }
 }
@@ -175,8 +176,8 @@ Agent 使用说明见 [setup-for-agent.md](setup-for-agent.md)。
 `okf-rag mcp` 默认启动后台 watcher。它监听 `okf-rag-workspace/okfs`，对文件变化做 debounce，重建 inactive A/B slot，成功后才切 active slot。
 
 ```powershell
-target\release\okf-rag.exe mcp --root .
-target\release\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
 ```
 
 运行状态文件：
@@ -224,8 +225,9 @@ cargo fmt
 cargo test -p okf-rag
 cargo clippy -p okf-rag -- -D warnings
 cargo build -p okf-rag --release
-target\release\okf-rag.exe ingest
-target\release\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
+node scripts/setup_okf_rag_workspace.js
+okf-rag-workspace\bin\okf-rag.exe ingest
+okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
 ```
 
 ## Ignore 规则

@@ -3,9 +3,17 @@
 const fs = require("fs");
 const path = require("path");
 
+const RUNTIME_FILES = [
+  "okf-rag.exe",
+  "onnxruntime.dll",
+  "onnxruntime_providers_shared.dll",
+  "zvec_c_api.dll",
+];
+
 function parseArgs(argv) {
   const args = {
     root: path.resolve(__dirname, ".."),
+    runtimeSource: null,
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -16,6 +24,12 @@ function parseArgs(argv) {
         throw new Error("--root requires a value");
       }
       args.root = path.resolve(value);
+    } else if (arg === "--runtime-source") {
+      const value = argv[++i];
+      if (!value || value.startsWith("--")) {
+        throw new Error("--runtime-source requires a value");
+      }
+      args.runtimeSource = path.resolve(value);
     } else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -28,11 +42,12 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/setup_okf_rag_workspace.js [--root DIR]
+  console.log(`Usage: node scripts/setup_okf_rag_workspace.js [--root DIR] [--runtime-source DIR]
 
-Creates the local OKF-RAG scaffold after git clone. This script does not create,
-edit, or validate .codex/config.toml. Codex MCP setup is documented in
-setup-for-agent.md and should be applied manually.`);
+Creates the local OKF-RAG scaffold after git clone and copies the prebuilt
+runtime into okf-rag-workspace/bin when release artifacts are available.
+This script does not create, edit, or validate .codex/config.toml. Codex MCP
+setup is documented in setup-for-agent.md and should be applied manually.`);
 }
 
 function ensureDir(dirPath) {
@@ -51,6 +66,66 @@ function writeFileIfMissing(filePath, content) {
   console.log(`file: ${filePath}`);
 }
 
+function hasRuntimeFiles(dirPath) {
+  return RUNTIME_FILES.every((fileName) => fs.existsSync(path.join(dirPath, fileName)));
+}
+
+function firstRuntimeSource(rootPath, runtimeSource) {
+  if (runtimeSource) {
+    if (!hasRuntimeFiles(runtimeSource)) {
+      throw new Error(`Missing one or more runtime artifacts in: ${runtimeSource}`);
+    }
+    return runtimeSource;
+  }
+
+  const scriptRoot = path.resolve(__dirname, "..");
+  const candidates = [
+    path.join(rootPath, "target", "release"),
+    path.join(scriptRoot, "target", "release"),
+    path.join(rootPath, "okf-rag-workspace", "bin"),
+    path.join(scriptRoot, "okf-rag-workspace", "bin"),
+  ];
+
+  return candidates.find((candidate) => hasRuntimeFiles(candidate)) || null;
+}
+
+function copyFileIfChanged(source, destination) {
+  if (path.resolve(source).toLowerCase() === path.resolve(destination).toLowerCase()) {
+    console.log(`keep: ${destination}`);
+    return;
+  }
+
+  if (fs.existsSync(destination)) {
+    const sourceStat = fs.statSync(source);
+    const destinationStat = fs.statSync(destination);
+    if (
+      sourceStat.size === destinationStat.size &&
+      sourceStat.mtimeMs <= destinationStat.mtimeMs
+    ) {
+      console.log(`keep: ${destination}`);
+      return;
+    }
+  }
+
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  fs.copyFileSync(source, destination);
+  console.log(`runtime: ${destination}`);
+}
+
+function copyRuntimeArtifacts(rootPath, runtimeSource) {
+  const sourceDir = firstRuntimeSource(rootPath, runtimeSource);
+  const destinationDir = path.join(rootPath, "okf-rag-workspace", "bin");
+
+  if (!sourceDir) {
+    console.log("runtime: not found; build release or pass --runtime-source, then rerun setup");
+    return;
+  }
+
+  for (const fileName of RUNTIME_FILES) {
+    copyFileIfChanged(path.join(sourceDir, fileName), path.join(destinationDir, fileName));
+  }
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const rootPath = path.resolve(args.root);
@@ -61,6 +136,7 @@ function main() {
     ".codex",
     "okf-rag",
     "okf-rag-workspace",
+    "okf-rag-workspace/bin",
     "okf-rag-workspace/okfs",
     "dist",
   ];
@@ -92,7 +168,7 @@ function main() {
     [
       "[mcp_servers.okf-rag]",
       'type = "stdio"',
-      'command = ".\\\\target\\\\release\\\\okf-rag.exe"',
+      'command = ".\\\\okf-rag-workspace\\\\bin\\\\okf-rag.exe"',
       'args = ["mcp", "--root", "."]',
       "",
     ].join("\n"),
@@ -117,7 +193,28 @@ function main() {
       "",
       "User-authored OKF Markdown lives under `okfs/`.",
       "",
-      "Generated indexes and caches belong under `.okf-rag/`, not here.",
+      "The workspace-local runtime entrypoint lives under `bin/` when prebuilt artifacts are available.",
+      "",
+      "Generated indexes and caches belong under `../.okf-rag/`, not here.",
+      "",
+    ].join("\n"),
+  );
+
+  writeFileIfMissing(
+    path.join(rootPath, "okf-rag-workspace", "bin", "README.md"),
+    [
+      "# OKF-RAG Runtime",
+      "",
+      "Setup and release packaging place the runnable MCP executable and required DLLs here:",
+      "",
+      "```text",
+      "okf-rag-workspace/bin/okf-rag.exe",
+      "okf-rag-workspace/bin/onnxruntime.dll",
+      "okf-rag-workspace/bin/onnxruntime_providers_shared.dll",
+      "okf-rag-workspace/bin/zvec_c_api.dll",
+      "```",
+      "",
+      "Point MCP hosts at this workspace-local executable, not at a repository build directory.",
       "",
     ].join("\n"),
   );
@@ -141,7 +238,7 @@ function main() {
       "Place OKF Markdown files in this directory, then run:",
       "",
       "```powershell",
-      "target\\release\\okf-rag.exe ingest --force",
+      "okf-rag-workspace\\bin\\okf-rag.exe ingest --force",
       "```",
       "",
     ].join("\n"),
@@ -156,9 +253,8 @@ function main() {
       "description: Demonstrates the portable OKF-RAG workspace layout, local indexing, and project-scoped MCP setup.",
       "tags: [okf, demo, local-first, mcp, zvec]",
       "timestamp: 2026-06-24T00:00:00+08:00",
-      "nocturne:",
-      "  uri: okf://demo/local-first-okf-rag",
-      "  disclosure: When testing whether a fresh OKF-RAG workspace can ingest, query, and expose local MCP memory.",
+      "uri: okf://demo/local-first-okf-rag",
+      "disclosure: When testing whether a fresh OKF-RAG workspace can ingest, query, and expose local MCP memory.",
       "---",
       "",
       "# Local-First OKF-RAG Demo",
@@ -171,9 +267,9 @@ function main() {
       "",
       "### Key Results",
       "",
-      "- KR1. `target\\release\\okf-rag.exe ingest --root . --force` builds a local index from `okf-rag-workspace/okfs/`.",
-      "- KR2. `target\\release\\okf-rag.exe status --root .` reports at least one indexed concept.",
-      "- KR3. `target\\release\\okf-rag.exe query --root . \"local first okf rag demo\"` returns this OKF.",
+      "- KR1. `okf-rag-workspace\\bin\\okf-rag.exe ingest --root . --force` builds a local index from `okf-rag-workspace/okfs/`.",
+      "- KR2. `okf-rag-workspace\\bin\\okf-rag.exe status --root .` reports at least one indexed concept.",
+      "- KR3. `okf-rag-workspace\\bin\\okf-rag.exe query --root . \"local first okf rag demo\"` returns this OKF.",
       "",
       "## Evidence",
       "",
@@ -186,6 +282,8 @@ function main() {
       "",
     ].join("\n"),
   );
+
+  copyRuntimeArtifacts(rootPath, args.runtimeSource);
 
   console.log("Codex MCP config was not changed. See setup-for-agent.md for manual project-local Codex setup.");
 }

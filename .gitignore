@@ -34,6 +34,10 @@
 # OKF-RAG truth/demo workspace and source scaffold are intentional project files.
 !/okf-rag/
 !/okf-rag-workspace/
+/okf-rag-workspace/bin/*.dll
+/okf-rag-workspace/bin/*.exe
+/okf-rag-workspace/bin/*.pdb
+!/okf-rag-workspace/bin/README.md
 
 *.pyc
 __pycache__/

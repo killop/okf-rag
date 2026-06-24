@@ -14,4 +14,10 @@ The demo OKF file is:
 okf-rag-workspace/okfs/domain-driven-memory-okf.md
 ```
 
+The workspace-local MCP executable lives here when prebuilt runtime files are available:
+
+```text
+okf-rag-workspace/bin/okf-rag.exe
+```
+
 Do not put generated indexes, caches, or MCP runtime state here. Those belong under `.okf-rag/`.
