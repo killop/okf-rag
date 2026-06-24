@@ -1,0 +1,4 @@
+[mcp_servers.okr-rag]
+type = "stdio"
+command = ".\\target\\release\\okr-rag.exe"
+args = ["mcp", "--root", "."]

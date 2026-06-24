@@ -1,0 +1,68 @@
+{
+  "name": "knowledge-memory-sample-recall",
+  "queries": [
+    {
+      "id": "router_profile_choice",
+      "query": "which note explains choosing a retrieval profile before search",
+      "expected": ["concepts/domain-router"],
+      "tags": ["router"]
+    },
+    {
+      "id": "router_generic_signals",
+      "query": "where is the rule about using timestamps length entities and query specificity",
+      "expected": ["concepts/domain-router"],
+      "tags": ["router", "signals"]
+    },
+    {
+      "id": "router_no_hardcoding",
+      "query": "what memory says not to hardcode a specific project or game engine into retrieval core",
+      "expected": ["concepts/domain-router"],
+      "tags": ["router", "generic"]
+    },
+    {
+      "id": "disclosure_wakeup",
+      "query": "what concept says disclosure is the wake up condition for a memory",
+      "expected": ["concepts/nocturne-disclosure"],
+      "tags": ["disclosure"]
+    },
+    {
+      "id": "disclosure_uri_alias",
+      "query": "which memory explains uri access paths aliases and independent priority",
+      "expected": ["concepts/nocturne-disclosure"],
+      "tags": ["nocturne", "alias"]
+    },
+    {
+      "id": "disclosure_metadata_recall",
+      "query": "when should metadata make a knowledge point easier to recall later",
+      "expected": ["concepts/nocturne-disclosure"],
+      "tags": ["metadata"]
+    },
+    {
+      "id": "vectorize_yaml_body",
+      "query": "which note says to embed yaml frontmatter together with markdown body",
+      "expected": ["concepts/frontmatter-vectorization"],
+      "tags": ["vectorization"]
+    },
+    {
+      "id": "vectorize_tags_uri",
+      "query": "where are tags uri disclosure priority and aliases included in semantic search text",
+      "expected": ["concepts/frontmatter-vectorization"],
+      "tags": ["vectorization", "metadata"]
+    },
+    {
+      "id": "zvec_lookup_not_source",
+      "query": "what says zvec is only the fast lookup layer and markdown remains source of truth",
+      "expected": ["concepts/frontmatter-vectorization"],
+      "tags": ["zvec", "source-of-truth"]
+    },
+    {
+      "id": "metadata_multi_match",
+      "query": "how do disclosure and uri fields help memory search recall",
+      "expected": [
+        "concepts/nocturne-disclosure",
+        "concepts/frontmatter-vectorization"
+      ],
+      "tags": ["metadata", "multi"]
+    }
+  ]
+}

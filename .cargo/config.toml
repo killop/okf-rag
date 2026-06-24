@@ -1,0 +1,5 @@
+[env]
+ZVEC_LIB_DIR = { value = "third_party/zvec-prebuilt-x86_64-pc-windows-msvc", relative = true }
+ZVEC_AUTO_BUILD = "0"
+ORT_LIB_LOCATION = { value = "third_party/onnxruntime/lib", relative = true }
+ORT_PREFER_DYNAMIC_LINK = "1"

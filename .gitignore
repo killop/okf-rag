@@ -1,0 +1,39 @@
+/target/
+/dist/
+/.cache/
+/.mcp_data/
+/.venv/
+/reports/
+
+# Keep the project-local Codex template, ignore machine-specific config.
+/.codex/*
+!/.codex/
+!/.codex/config.toml.example
+
+# OKR-RAG runtime state is derived and can be rebuilt.
+# Keep the directory demo/readme trackable, ignore generated contents.
+/.okr-rag/*
+!/.okr-rag/README.md
+!/.okr-rag/.gitkeep
+
+# Generated benchmark/vector-store artifacts.
+/data/bench-runs/
+/data/benchmarks/
+/data/recall-runs/
+/data/zvec-generic-demo/
+/data/zvec-minilm-demo/
+/data/beir-zvec/
+/data/real-okf-knowledge-memory/
+/data/knowledge-memory-system-proof/
+/data/knowledge-memory-zvec-sample/
+/data/knowledge-memory-zvec-sample-check/
+/data/mempalace-zvec-runs/
+/data/okr-memory-benchmark/
+/data/ork-rag-smoke/
+
+# OKR-RAG truth/demo workspace and source scaffold are intentional project files.
+!/okr-rag/
+!/okr-rag-workspace/
+
+*.pyc
+__pycache__/
