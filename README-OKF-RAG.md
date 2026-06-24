@@ -75,10 +75,10 @@ Initialize OKF-RAG from the project root where the agent is working:
 
 ```powershell
 $WORKDIR = (Get-Location).Path
-node scripts/setup_okf_rag_workspace.js --root $WORKDIR
+node scripts/setup_okf_rag_workspace.js --target $WORKDIR
 ```
 
-The setup script refuses to run without `--root`. Do not point `--root` at the `okf-rag` source repo unless that repo is the workspace you want to use.
+The setup script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo. Do not point `--target` at the source repo when installing for another project.
 
 Without an explicit `SOURCE_DIR`, `ingest` reads `okf-rag-workspace/okfs`.
 

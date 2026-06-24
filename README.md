@@ -33,7 +33,6 @@ okf-rag-workspace/bin/zvec_c_api.dll
 
 ```powershell
 cargo build -p okf-rag --release
-node scripts/setup_okf_rag_workspace.js --root .
 ```
 
 Local zvec Rust bindings and native runtime dependencies are vendored under:
@@ -68,10 +67,10 @@ Initialize OKF-RAG from the project root where the agent is working:
 
 ```powershell
 $WORKDIR = (Get-Location).Path
-node scripts/setup_okf_rag_workspace.js --root $WORKDIR
+node scripts/setup_okf_rag_workspace.js --target $WORKDIR
 ```
 
-The setup script refuses to run without `--root`. Do not point `--root` at the `okf-rag` source repo unless that repo is the workspace you want to use. This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
+The setup script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo. Do not point `--target` at the source repo when installing for another project. This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
 
 ## CLI
 
@@ -220,9 +219,10 @@ cargo fmt
 cargo test -p okf-rag
 cargo clippy -p okf-rag -- -D warnings
 cargo build -p okf-rag --release
-node scripts/setup_okf_rag_workspace.js --root .
-okf-rag-workspace\bin\okf-rag.exe ingest
-okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candidate-k 50
+$SMOKE = Join-Path $env:TEMP "okf-rag-smoke"
+node scripts/setup_okf_rag_workspace.js --target $SMOKE --runtime-source target\release
+& "$SMOKE\okf-rag-workspace\bin\okf-rag.exe" ingest --root $SMOKE
+& "$SMOKE\okf-rag-workspace\bin\okf-rag.exe" query --root $SMOKE "domain memory zvec" --top-k 5 --candidate-k 50
 ```
 
 ## Ignore Policy

@@ -12,24 +12,30 @@ const RUNTIME_FILES = [
 
 function parseArgs(argv) {
   const args = {
-    root: null,
+    target: null,
     runtimeSource: null,
+    allowSourceInstall: false,
   };
 
   for (let i = 2; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--root") {
+    if (arg === "--target" || arg === "--root") {
       const value = argv[++i];
       if (!value || value.startsWith("--")) {
-        throw new Error("--root requires a value");
+        throw new Error(`${arg} requires a value`);
       }
-      args.root = path.resolve(value);
+      if (args.target) {
+        throw new Error("Pass only one target directory. Use --target DIR.");
+      }
+      args.target = path.resolve(value);
     } else if (arg === "--runtime-source") {
       const value = argv[++i];
       if (!value || value.startsWith("--")) {
         throw new Error("--runtime-source requires a value");
       }
       args.runtimeSource = path.resolve(value);
+    } else if (arg === "--allow-source-install") {
+      args.allowSourceInstall = true;
     } else if (arg === "--help" || arg === "-h") {
       printHelp();
       process.exit(0);
@@ -38,22 +44,22 @@ function parseArgs(argv) {
     }
   }
 
-  if (!args.root) {
-    throw new Error("--root is required. Pass the target project workspace root, not the okf-rag source repo by accident.");
+  if (!args.target) {
+    throw new Error("--target is required. Pass the agent's current project workspace root, not the okf-rag source repo.");
   }
 
   return args;
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/setup_okf_rag_workspace.js --root DIR [--runtime-source DIR]
+  console.log(`Usage: node scripts/setup_okf_rag_workspace.js --target DIR [--runtime-source DIR]
 
 Creates the local OKF-RAG workspace scaffold and copies the prebuilt runtime
 into okf-rag-workspace/bin when release artifacts are available.
 
---root must be the target project workspace where the current agent is working.
-Do not point it at the okf-rag source repo unless that source repo is the actual
-target workspace.
+--target must be the project workspace where the current agent is working.
+Do not point it at the okf-rag source repo. The script refuses that by default.
+Use --allow-source-install only when intentionally dogfooding this source repo.
 
 This script does not create, edit, or validate .codex/config.toml. Codex MCP
 setup is documented in setup-for-agent.md and should be applied manually.`);
@@ -79,7 +85,11 @@ function hasRuntimeFiles(dirPath) {
   return RUNTIME_FILES.every((fileName) => fs.existsSync(path.join(dirPath, fileName)));
 }
 
-function firstRuntimeSource(rootPath, runtimeSource) {
+function samePath(left, right) {
+  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+}
+
+function firstRuntimeSource(targetPath, runtimeSource) {
   if (runtimeSource) {
     if (!hasRuntimeFiles(runtimeSource)) {
       throw new Error(`Missing one or more runtime artifacts in: ${runtimeSource}`);
@@ -89,9 +99,9 @@ function firstRuntimeSource(rootPath, runtimeSource) {
 
   const scriptRoot = path.resolve(__dirname, "..");
   const candidates = [
-    path.join(rootPath, "target", "release"),
+    path.join(targetPath, "target", "release"),
     path.join(scriptRoot, "target", "release"),
-    path.join(rootPath, "okf-rag-workspace", "bin"),
+    path.join(targetPath, "okf-rag-workspace", "bin"),
     path.join(scriptRoot, "okf-rag-workspace", "bin"),
   ];
 
@@ -121,9 +131,9 @@ function copyFileIfChanged(source, destination) {
   console.log(`runtime: ${destination}`);
 }
 
-function copyRuntimeArtifacts(rootPath, runtimeSource) {
-  const sourceDir = firstRuntimeSource(rootPath, runtimeSource);
-  const destinationDir = path.join(rootPath, "okf-rag-workspace", "bin");
+function copyRuntimeArtifacts(targetPath, runtimeSource) {
+  const sourceDir = firstRuntimeSource(targetPath, runtimeSource);
+  const destinationDir = path.join(targetPath, "okf-rag-workspace", "bin");
 
   if (!sourceDir) {
     console.log("runtime: not found; build release or pass --runtime-source, then rerun setup");
@@ -137,7 +147,17 @@ function copyRuntimeArtifacts(rootPath, runtimeSource) {
 
 function main() {
   const args = parseArgs(process.argv);
-  const rootPath = path.resolve(args.root);
+  const targetPath = path.resolve(args.target);
+  const sourceRoot = path.resolve(__dirname, "..");
+
+  if (samePath(targetPath, sourceRoot) && !args.allowSourceInstall) {
+    throw new Error([
+      "Refusing to install into the okf-rag source repo.",
+      `source repo: ${sourceRoot}`,
+      "Pass --target <agent project workspace root> instead.",
+      "If you are intentionally testing this source repo, add --allow-source-install.",
+    ].join("\n"));
+  }
 
   const dirs = [
     ".okf-rag",
@@ -148,16 +168,16 @@ function main() {
   ];
 
   for (const dir of dirs) {
-    ensureDir(path.join(rootPath, dir));
+    ensureDir(path.join(targetPath, dir));
   }
 
   writeFileIfMissing(
-    path.join(rootPath, ".okf-rag", ".gitkeep"),
+    path.join(targetPath, ".okf-rag", ".gitkeep"),
     "",
   );
 
   writeFileIfMissing(
-    path.join(rootPath, ".okf-rag", "README.md"),
+    path.join(targetPath, ".okf-rag", "README.md"),
     [
       "# .okf-rag",
       "",
@@ -170,7 +190,7 @@ function main() {
   );
 
   writeFileIfMissing(
-    path.join(rootPath, "okf-rag-workspace", "README.md"),
+    path.join(targetPath, "okf-rag-workspace", "README.md"),
     [
       "# okf-rag-workspace",
       "",
@@ -184,7 +204,7 @@ function main() {
   );
 
   writeFileIfMissing(
-    path.join(rootPath, "okf-rag-workspace", "bin", "README.md"),
+    path.join(targetPath, "okf-rag-workspace", "bin", "README.md"),
     [
       "# OKF-RAG Runtime",
       "",
@@ -203,7 +223,7 @@ function main() {
   );
 
   writeFileIfMissing(
-    path.join(rootPath, "okf-rag-workspace", "index.md"),
+    path.join(targetPath, "okf-rag-workspace", "index.md"),
     [
       "# OKF-RAG Workspace",
       "",
@@ -214,7 +234,7 @@ function main() {
   );
 
   writeFileIfMissing(
-    path.join(rootPath, "okf-rag-workspace", "okfs", "index.md"),
+    path.join(targetPath, "okf-rag-workspace", "okfs", "index.md"),
     [
       "# OKF Sources",
       "",
@@ -228,7 +248,7 @@ function main() {
   );
 
   writeFileIfMissing(
-    path.join(rootPath, "okf-rag-workspace", "okfs", "local-first-okf-rag-demo.md"),
+    path.join(targetPath, "okf-rag-workspace", "okfs", "local-first-okf-rag-demo.md"),
     [
       "---",
       "type: OKF",
@@ -265,8 +285,9 @@ function main() {
     ].join("\n"),
   );
 
-  copyRuntimeArtifacts(rootPath, args.runtimeSource);
+  copyRuntimeArtifacts(targetPath, args.runtimeSource);
 
+  console.log(`target: ${targetPath}`);
   console.log("Codex MCP config was not changed. See setup-for-agent.md for manual project-local Codex setup.");
 }
 

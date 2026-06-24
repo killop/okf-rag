@@ -52,29 +52,31 @@ okf-rag-workspace\bin\okf-rag.exe ingest --force
 
 Install OKF-RAG into the project root where the current agent is working. Call this path `WORKDIR`.
 
+Capture `WORKDIR` before changing directory to read or build the `okf-rag` source repo. In Codex, this is the directory shown in the session header, not the directory that contains this README.
+
 ```powershell
 $WORKDIR = (Get-Location).Path
 ```
 
-Do not use the `okf-rag` source repository path, a previous project path, or a hardcoded local example as `WORKDIR` unless that is the actual project currently open in Codex.
+Do not use the `okf-rag` source repository path, a previous project path, or a hardcoded local example as `WORKDIR`. The source repo is only where the installer and release artifacts come from.
 
 ## Workspace Setup Script
 
 Run the setup script against `WORKDIR`. If the script is in the current directory, this is enough:
 
 ```powershell
-node scripts/setup_okf_rag_workspace.js --root $WORKDIR
+node scripts/setup_okf_rag_workspace.js --target $WORKDIR
 ```
 
 If the setup script lives in a separate cloned `okf-rag` source repo, still install into the current `WORKDIR`:
 
 ```powershell
-node <OKF_RAG_REPO>\scripts\setup_okf_rag_workspace.js --root $WORKDIR --runtime-source <OKF_RAG_REPO>\target\release
+node <OKF_RAG_REPO>\scripts\setup_okf_rag_workspace.js --target $WORKDIR --runtime-source <OKF_RAG_REPO>\target\release
 ```
 
 The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`.
 
-The script refuses to run without `--root`; this is intentional, so an agent cannot accidentally install into the `okf-rag` source repo after reading its README.
+The script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo by default. This is intentional, so an agent cannot accidentally install into the source repo after reading its README.
 
 ```text
 .okf-rag/
@@ -90,7 +92,7 @@ It must not create, edit, or validate any `.codex/config.toml`. Project-local Co
 After copying the demo or extracting a release package, rebuild the runtime index instead of trusting copied stale state:
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe ingest --root . --force
+okf-rag-workspace\bin\okf-rag.exe ingest --root $WORKDIR --force
 ```
 
 The ignore policy should keep source and OKF truth trackable, while ignoring generated runtime files.
