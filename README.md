@@ -64,13 +64,14 @@ Packaging scripts do not create or edit project-local Codex config. See [setup-f
 
 ## Setup After Clone
 
-After `git clone`, initialize the local directory scaffold:
+Initialize OKF-RAG from the project root where the agent is working:
 
 ```powershell
-node scripts/setup_okf_rag_workspace.js
+$WORKDIR = (Get-Location).Path
+node scripts/setup_okf_rag_workspace.js --root $WORKDIR
 ```
 
-This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`. If you are inside this source repo, you can use `.codex/config.toml.example` as a template; for any other workspace, copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
+Without `--root`, the setup script installs into the process current directory. Do not point it at the `okf-rag` source repo unless that repo is the workspace you want to use. This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
 
 ## CLI
 
@@ -127,21 +128,21 @@ Start the stdio MCP server:
 okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
-Install the MCP config in the project-local Codex config:
+Install the MCP config in the current workspace's project-local Codex config:
 
 ```text
-<CLONE_ROOT>\.codex\config.toml
+<WORKDIR>\.codex\config.toml
 ```
 
 Do not install this project's MCP entry into `%USERPROFILE%\.codex\config.toml` unless you explicitly want it available in every Codex workspace.
 
-Copy the template from `.codex/config.toml.example`:
+Recommended config uses the actual current workspace path:
 
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "."]
+command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "<WORKDIR>"]
 ```
 
 Generic MCP config:

@@ -71,11 +71,14 @@ node scripts/package_okf_rag_release.js
 The generated package does not create or edit `.codex/config.toml`; Codex project-local setup is documented in `setup-for-agent.md`.
 After extracting it elsewhere, run `okf-rag-workspace\bin\okf-rag.exe ingest --force` once to build the local index without compiling.
 
-After `git clone`, initialize the local scaffold with:
+Initialize OKF-RAG from the project root where the agent is working:
 
 ```powershell
-node scripts/setup_okf_rag_workspace.js
+$WORKDIR = (Get-Location).Path
+node scripts/setup_okf_rag_workspace.js --root $WORKDIR
 ```
+
+Without `--root`, the setup script installs into the process current directory. Do not point it at the `okf-rag` source repo unless that repo is the workspace you want to use.
 
 Without an explicit `SOURCE_DIR`, `ingest` reads `okf-rag-workspace/okfs`.
 
@@ -120,18 +123,18 @@ okf-rag-workspace\bin\okf-rag.exe mcp --root .
 For Codex, install this MCP entry in the project-local config:
 
 ```text
-<CLONE_ROOT>\.codex\config.toml
+<WORKDIR>\.codex\config.toml
 ```
 
 Do not use the user-level config (`C:\Users\<USER>\.codex\config.toml`) unless the user explicitly asks for a global install.
 
-Copy the template from `.codex/config.toml.example`:
+Recommended config uses the actual current workspace path:
 
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "."]
+command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "<WORKDIR>"]
 ```
 
 Available tools:

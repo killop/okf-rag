@@ -62,13 +62,14 @@ okf-rag-workspace\bin\okf-rag.exe ingest --force
 
 ## Clone 后 Setup
 
-`git clone` 后初始化本地目录骨架：
+在当前 agent 正在工作的项目根目录初始化 OKF-RAG：
 
 ```powershell
-node scripts/setup_okf_rag_workspace.js
+$WORKDIR = (Get-Location).Path
+node scripts/setup_okf_rag_workspace.js --root $WORKDIR
 ```
 
-这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改 `.codex/config.toml`。如果你在这个源码 repo 里，可以用 `.codex/config.toml.example` 作为模板；如果是在别的用户工作目录，直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
+不传 `--root` 时，setup 脚本会安装到当前进程目录。不要把它指向 `okf-rag` 源码 repo，除非这个 repo 就是你要使用的 workspace。这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改 `.codex/config.toml`；直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
 
 ## CLI
 
@@ -128,7 +129,7 @@ okf-rag-workspace\bin\okf-rag.exe mcp --root .
 安装 MCP 配置时，默认写到当前项目的 Codex 配置：
 
 ```text
-<CLONE_ROOT>\.codex\config.toml
+<WORKDIR>\.codex\config.toml
 ```
 
 不要把这个项目的 MCP 配置写到用户级 Codex 配置，除非你明确要全局安装：
@@ -139,13 +140,13 @@ C:\Users\<USER>\.codex\config.toml
 
 项目级安装只在当前 workspace 生效，不会污染其他 Codex 会话。
 
-从 `.codex/config.toml.example` 复制模板：
+推荐配置直接使用当前 workspace 的真实路径：
 
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "."]
+command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "<WORKDIR>"]
 ```
 
 通用 MCP 配置：

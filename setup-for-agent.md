@@ -48,15 +48,31 @@ After extraction, run the bundled executable once to build the local index:
 okf-rag-workspace\bin\okf-rag.exe ingest --force
 ```
 
-## Clone Setup Script
+## Target Workspace
 
-After `git clone`, initialize the local scaffold:
+Install OKF-RAG into the project root where the current agent is working. Call this path `WORKDIR`.
 
 ```powershell
-node scripts/setup_okf_rag_workspace.js
+$WORKDIR = (Get-Location).Path
 ```
 
-The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`:
+Do not use the `okf-rag` source repository path, a previous project path, or a hardcoded local example as `WORKDIR` unless that is the actual project currently open in Codex.
+
+## Workspace Setup Script
+
+Run the setup script against `WORKDIR`. If the script is in the current directory, this is enough:
+
+```powershell
+node scripts/setup_okf_rag_workspace.js --root $WORKDIR
+```
+
+If the setup script lives in a separate cloned `okf-rag` source repo, still install into the current `WORKDIR`:
+
+```powershell
+node <OKF_RAG_REPO>\scripts\setup_okf_rag_workspace.js --root $WORKDIR --runtime-source <OKF_RAG_REPO>\target\release
+```
+
+The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`. Without `--root`, it defaults to the process current directory:
 
 ```text
 .okf-rag/
@@ -77,7 +93,7 @@ okf-rag-workspace\bin\okf-rag.exe ingest --root . --force
 
 The ignore policy should keep source and OKF truth trackable, while ignoring generated runtime files.
 
-If rules are missing, update the repository's tracked ignore file, normally:
+If rules are missing, update the repository's tracked ignore file in `WORKDIR`, normally:
 
 ```text
 <WORKDIR>\.gitignore
@@ -111,16 +127,16 @@ The MCP executable for agents must be the workspace-local binary:
 
 Do not point normal agent MCP config at a repository build output such as `target\release\okf-rag.exe`. Build outputs are maintainer artifacts; the workspace-local `bin` directory is the install location agents should use.
 
-If Codex should load this MCP server for the cloned workspace, create the project-local config file yourself:
+If Codex should load this MCP server for the current workspace, create the project-local config file yourself:
 
 ```text
-<CLONE_ROOT>\.codex\config.toml
+<WORKDIR>\.codex\config.toml
 ```
 
-If you are inside the `okf-rag` source repo, you can start from the checked-in template:
+If you are installing into the `okf-rag` source repo itself, you can start from the checked-in template:
 
 ```text
-<CLONE_ROOT>\.codex\config.toml.example
+<WORKDIR>\.codex\config.toml.example
 ```
 
 For any other user workspace, use the TOML snippet below directly instead of copying extra directories into the workspace.
@@ -133,7 +149,16 @@ C:\Users\<USER>\.codex\config.toml
 
 Project-local install keeps `okf-rag` scoped to this workspace and prevents it from appearing in unrelated Codex sessions.
 
-Preferred project-local TOML uses paths relative to the clone root:
+Recommended project-local TOML uses the actual current workspace path. Replace `<WORKDIR>` with the project root where Codex is running:
+
+```toml
+[mcp_servers.okf-rag]
+type = "stdio"
+command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "<WORKDIR>"]
+```
+
+Relative paths are acceptable only when the MCP host resolves them from `WORKDIR`:
 
 ```toml
 [mcp_servers.okf-rag]
@@ -142,7 +167,7 @@ command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]
 ```
 
-If your Codex host does not resolve relative paths from the project root, use absolute paths for `command` and `--root`. After changing this file, restart the Codex session so the MCP server list is reloaded.
+After changing this file, restart the Codex session from `WORKDIR` so the MCP server list is reloaded.
 
 ## Start MCP
 

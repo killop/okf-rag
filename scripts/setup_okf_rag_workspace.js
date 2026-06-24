@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Initializes the local OKF-RAG directory scaffold after git clone.
+// Initializes the OKF-RAG scaffold in the current target workspace.
 const fs = require("fs");
 const path = require("path");
 
@@ -12,7 +12,7 @@ const RUNTIME_FILES = [
 
 function parseArgs(argv) {
   const args = {
-    root: path.resolve(__dirname, ".."),
+    root: path.resolve(process.cwd()),
     runtimeSource: null,
   };
 
@@ -45,9 +45,10 @@ function printHelp() {
   console.log(`Usage: node scripts/setup_okf_rag_workspace.js [--root DIR] [--runtime-source DIR]
 
 Creates the local OKF-RAG workspace scaffold and copies the prebuilt runtime
-into okf-rag-workspace/bin when release artifacts are available. This script
-does not create, edit, or validate .codex/config.toml. Codex MCP setup is
-documented in setup-for-agent.md and should be applied manually.`);
+into okf-rag-workspace/bin when release artifacts are available. Without
+--root, DIR defaults to the current working directory, not the script's repo.
+This script does not create, edit, or validate .codex/config.toml. Codex MCP
+setup is documented in setup-for-agent.md and should be applied manually.`);
 }
 
 function ensureDir(dirPath) {
