@@ -1,5 +1,7 @@
 # okf-rag
 
+[中文 README](README-CN.md)
+
 Local-first OKF retrieval with Markdown as the only truth.
 
 `okf-rag` is a Rust CLI and stdio MCP server. It indexes OKF Markdown with local ONNX MiniLM embeddings and zvec, then serves hybrid retrieval to agents.
