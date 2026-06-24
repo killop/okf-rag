@@ -88,6 +88,36 @@ target\release\okf-rag.exe bench data\okf-memory-benchmark\okf-hybrid-20260623-2
 okf-rag-workspace/okfs
 ```
 
+## Benchmark
+
+2026-06-24 的 release benchmark：本地 `minilm-l6-v2-onnx`，本地 zvec，53 个 OKF Markdown concepts，258 条 queries，`top-k=10`，有效 `candidate-k=53`。
+
+| 指标 | 结果 |
+|---|---:|
+| Recall@1 / Hit@1 | 0.9535 |
+| Recall@3 / Hit@3 | 0.9845 |
+| Recall@5 / Hit@5 | 0.9922 |
+| Recall@10 / Hit@10 | 1.0000 |
+| MRR@10 | 0.9700 |
+
+Hot query path 会先加载一次 ONNX 和 zvec，然后连续跑全部 queries：
+
+| 阶段 | Avg ms | P50 ms | P95 ms |
+|---|---:|---:|---:|
+| Total query | 5.327 | 5.280 | 6.285 |
+| ONNX embedding | 3.474 | 3.419 | 4.355 |
+| zvec + rerank | 1.853 | 1.845 | 2.016 |
+
+Ingest benchmark：
+
+| 运行方式 | Cache Hits | Cache Misses | Total ms |
+|---|---:|---:|---:|
+| Cold embedding cache, forced rebuild | 0 | 53 | 1834.119 |
+| Warm embedding cache, forced rebuild | 53 | 0 | 190.061 |
+| Unchanged source, skipped rebuild | 0 | 0 | 71.584 |
+
+完整数据、query type breakdown 和 ONNX thread sweep 见 [OKF-RAG-BENCHMARK.md](OKF-RAG-BENCHMARK.md)。
+
 ## MCP
 
 启动 stdio MCP server：

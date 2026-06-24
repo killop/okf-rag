@@ -81,6 +81,36 @@ node scripts/setup_okf_rag_workspace.js
 
 Without an explicit `SOURCE_DIR`, `ingest` reads `okf-rag-workspace/okfs`.
 
+## Benchmark
+
+Release benchmark on 2026-06-24, using local `minilm-l6-v2-onnx`, local zvec, 53 OKF Markdown concepts, 258 queries, `top-k=10`, and effective `candidate-k=53`.
+
+| Metric | Result |
+|---|---:|
+| Recall@1 / Hit@1 | 0.9535 |
+| Recall@3 / Hit@3 | 0.9845 |
+| Recall@5 / Hit@5 | 0.9922 |
+| Recall@10 / Hit@10 | 1.0000 |
+| MRR@10 | 0.9700 |
+
+Hot query path:
+
+| Stage | Avg ms | P50 ms | P95 ms |
+|---|---:|---:|---:|
+| Total query | 5.327 | 5.280 | 6.285 |
+| ONNX embedding | 3.474 | 3.419 | 4.355 |
+| zvec + rerank | 1.853 | 1.845 | 2.016 |
+
+Ingest:
+
+| Run | Cache Hits | Cache Misses | Total ms |
+|---|---:|---:|---:|
+| Cold embedding cache, forced rebuild | 0 | 53 | 1834.119 |
+| Warm embedding cache, forced rebuild | 53 | 0 | 190.061 |
+| Unchanged source, skipped rebuild | 0 | 0 | 71.584 |
+
+Full details are in [OKF-RAG-BENCHMARK.md](OKF-RAG-BENCHMARK.md).
+
 ## MCP Tools
 
 The Rust binary also exposes a stdio MCP server:
