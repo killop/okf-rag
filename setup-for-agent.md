@@ -4,29 +4,28 @@ This file teaches an agent how to use `okf-rag` as a local MCP memory service.
 
 ## Mental Model
 
-Use three directories consistently:
+Use two workspace directories consistently:
 
 - `.okf-rag/`: derived runtime state. It is temporary and may be deleted.
-- `okf-rag/`: the Rust source repository when published.
-- `okf-rag-workspace/`: user workspace. OKF Markdown truth files live in `okf-rag-workspace/okfs/`.
+- `okf-rag-workspace/`: user workspace and runtime install location. OKF Markdown truth files live in `okf-rag-workspace/okfs/`, and the workspace-local executable lives in `okf-rag-workspace/bin/`.
 
 Do not treat `.okf-rag/` as truth. Only Markdown under `okf-rag-workspace/okfs/` is user-authored OKF memory.
 
 ## Demo Copy Contract
 
-When setting up or copying this project for another agent, copy the three core directories together:
+When setting up or copying this project for another agent, copy the two workspace directories together:
 
 ```text
 .okf-rag/
-okf-rag/
 okf-rag-workspace/
 ```
 
 Their roles are different:
 
 - `.okf-rag/` is the runtime scaffold and derived cache area. It exists in the demo so agents know the directory name, but its generated contents are disposable.
-- `okf-rag/` is the source repository location. In this prototype, it is a scaffold; the active Rust crate currently lives under `crates/okf-rag/`.
-- `okf-rag-workspace/` is the user workspace and must include demo OKF truth files under `okf-rag-workspace/okfs/`.
+- `okf-rag-workspace/` is the user workspace and must include demo OKF truth files under `okf-rag-workspace/okfs/` plus the workspace-local runtime under `okf-rag-workspace/bin/`.
+
+The Rust source repository is the cloned `okf-rag` repo itself. Do not create or copy a nested `okf-rag/` scaffold directory inside the user workspace.
 
 For a user-facing release package, also include the prebuilt runtime artifacts inside the user workspace so consumers do not need to compile Rust:
 
@@ -62,17 +61,13 @@ The setup script creates basic directories, missing placeholder Markdown, and co
 ```text
 .okf-rag/
 .okf-rag/models/
-.codex/
-.codex/config.toml.example
-okf-rag/
 okf-rag-workspace/
 okf-rag-workspace/bin/
 okf-rag-workspace/okfs/
 okf-rag-workspace/okfs/local-first-okf-rag-demo.md
-dist/
 ```
 
-It must not create, edit, or validate the machine-local `.codex/config.toml`. Project-local Codex config is an explicit manual setup step documented below.
+It must not create, edit, or validate any `.codex/config.toml`. Project-local Codex config is an explicit manual setup step documented below.
 
 After copying the demo or extracting a release package, rebuild the runtime index instead of trusting copied stale state:
 
@@ -89,13 +84,12 @@ The ignore policy should keep source and OKF truth trackable, while ignoring gen
 /.codex/*
 !/.codex/
 !/.codex/config.toml.example
-!/okf-rag/
 !/okf-rag-workspace/
 ```
 
 ## Install Location
 
-Project-local Codex setup is manual. Setup and packaging scripts must not create, edit, or validate `.codex/config.toml`.
+Project-local Codex setup is manual. Setup scripts must not create, edit, or validate `.codex/config.toml`.
 
 The MCP executable for agents must be the workspace-local binary:
 
@@ -111,11 +105,13 @@ If Codex should load this MCP server for the cloned workspace, create the projec
 <CLONE_ROOT>\.codex\config.toml
 ```
 
-You can start from the checked-in template:
+If you are inside the `okf-rag` source repo, you can start from the checked-in template:
 
 ```text
 <CLONE_ROOT>\.codex\config.toml.example
 ```
+
+For any other user workspace, use the TOML snippet below directly instead of copying extra directories into the workspace.
 
 Do not install this project's `okf-rag` MCP server into the user-level Codex config unless the user explicitly asks for a global install:
 

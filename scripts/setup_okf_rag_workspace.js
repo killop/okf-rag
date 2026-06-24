@@ -44,10 +44,10 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage: node scripts/setup_okf_rag_workspace.js [--root DIR] [--runtime-source DIR]
 
-Creates the local OKF-RAG scaffold after git clone and copies the prebuilt
-runtime into okf-rag-workspace/bin when release artifacts are available.
-This script does not create, edit, or validate .codex/config.toml. Codex MCP
-setup is documented in setup-for-agent.md and should be applied manually.`);
+Creates the local OKF-RAG workspace scaffold and copies the prebuilt runtime
+into okf-rag-workspace/bin when release artifacts are available. This script
+does not create, edit, or validate .codex/config.toml. Codex MCP setup is
+documented in setup-for-agent.md and should be applied manually.`);
 }
 
 function ensureDir(dirPath) {
@@ -133,12 +133,9 @@ function main() {
   const dirs = [
     ".okf-rag",
     ".okf-rag/models",
-    ".codex",
-    "okf-rag",
     "okf-rag-workspace",
     "okf-rag-workspace/bin",
     "okf-rag-workspace/okfs",
-    "dist",
   ];
 
   for (const dir of dirs) {
@@ -159,29 +156,6 @@ function main() {
       "",
       "Generated indexes, caches, reports, lock files, and watcher state live here.",
       "Do not treat this directory as source truth. Source OKF Markdown belongs under `okf-rag-workspace/okfs/`.",
-      "",
-    ].join("\n"),
-  );
-
-  writeFileIfMissing(
-    path.join(rootPath, ".codex", "config.toml.example"),
-    [
-      "[mcp_servers.okf-rag]",
-      'type = "stdio"',
-      'command = ".\\\\okf-rag-workspace\\\\bin\\\\okf-rag.exe"',
-      'args = ["mcp", "--root", "."]',
-      "",
-    ].join("\n"),
-  );
-
-  writeFileIfMissing(
-    path.join(rootPath, "okf-rag", "README.md"),
-    [
-      "# okf-rag",
-      "",
-      "Source scaffold for the OKF-RAG Rust project.",
-      "",
-      "In this workspace layout, the active Rust crate lives under `crates/okf-rag/`.",
       "",
     ].join("\n"),
   );
@@ -274,7 +248,6 @@ function main() {
       "## Evidence",
       "",
       "- `setup-for-agent.md`: Agent setup and MCP config location.",
-      "- `.codex/config.toml.example`: Project-local MCP config template.",
       "",
       "## Retrieval Notes",
       "",

@@ -35,7 +35,6 @@ Codex MCP configuration should be project-local unless the user explicitly asks 
 ## Evidence
 
 - `setup-for-agent.md`: Agent setup, MCP config location, and hot-sync workflow.
-- `.codex/config.toml.example`: Project-local MCP config template.
 - `.gitignore`: Keeps machine-local config and runtime state out of source control.
 
 ## Retrieval Notes

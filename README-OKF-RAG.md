@@ -4,21 +4,19 @@ Local-first OKF retrieval with Markdown as the only truth.
 
 ## Directory Contract
 
-Use these three folders consistently:
+Use these two workspace folders consistently:
 
 - `.okf-rag/`: temporary derived state. It can be deleted and may contain stale indexes, reports, caches, and local model state.
-- `okf-rag/`: the Rust source repository name when this project is published to GitHub.
-- `okf-rag-workspace/`: the user workspace. By default, OKF Markdown truth files live under `okf-rag-workspace/okfs/`.
+- `okf-rag-workspace/`: the user workspace and runtime install location. OKF Markdown truth files live under `okf-rag-workspace/okfs/`, and the workspace-local executable lives under `okf-rag-workspace/bin/`.
 
-For setup demos and agent handoff, copy all three core directories:
+For setup demos and agent handoff, copy both workspace directories:
 
 ```text
 .okf-rag/
-okf-rag/
 okf-rag-workspace/
 ```
 
-Keep `.okf-rag/` as a scaffold, but rebuild its generated runtime state after copying:
+The Rust source repository is the cloned `okf-rag` repo itself. Do not create a nested `okf-rag/` directory inside a user workspace. Keep `.okf-rag/` as a scaffold, but rebuild its generated runtime state after copying:
 
 ```powershell
 okf-rag-workspace\bin\okf-rag.exe ingest --force
@@ -223,7 +221,7 @@ The GitHub remote is `killop/okf-rag`.
 
 ## Ignore Policy
 
-Use this policy so demo structure is visible while generated runtime state stays disposable:
+Use this policy so demo OKF truth is visible while generated runtime state stays disposable:
 
 ```gitignore
 /.okf-rag/*
@@ -232,6 +230,5 @@ Use this policy so demo structure is visible while generated runtime state stays
 /.codex/*
 !/.codex/
 !/.codex/config.toml.example
-!/okf-rag/
 !/okf-rag-workspace/
 ```

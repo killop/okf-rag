@@ -31,8 +31,7 @@
 /data/okf-memory-benchmark/
 /data/ork-rag-smoke/
 
-# OKF-RAG truth/demo workspace and source scaffold are intentional project files.
-!/okf-rag/
+# OKF-RAG truth/demo workspace is intentional project content.
 !/okf-rag-workspace/
 /okf-rag-workspace/bin/*.dll
 /okf-rag-workspace/bin/*.exe

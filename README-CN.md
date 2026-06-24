@@ -7,18 +7,16 @@
 ## 目录约定
 
 - `.okf-rag/`：临时运行状态，可以删除，里面可能有过期索引、报告、缓存、本地模型状态、watcher 状态。
-- `okf-rag/`：以后发布到 GitHub 的 Rust 源码仓库名。
-- `okf-rag-workspace/`：用户工作目录。默认 OKF Markdown truth 文件放在 `okf-rag-workspace/okfs/`。
+- `okf-rag-workspace/`：用户工作目录和 runtime 安装位置。OKF Markdown truth 文件放在 `okf-rag-workspace/okfs/`，workspace-local 可执行程序放在 `okf-rag-workspace/bin/`。
 
-做 setup demo 或交给另一个 agent 时，要把三个核心目录一起复制：
+做 setup demo 或交给另一个 agent 时，只需要把两个 workspace 目录一起复制：
 
 ```text
 .okf-rag/
-okf-rag/
 okf-rag-workspace/
 ```
 
-`.okf-rag/` 作为目录骨架保留，但里面生成出来的索引、缓存、状态都是可删除的。复制后用 `okf-rag ingest --force` 重建。
+Rust 源码仓库就是 clone 下来的 `okf-rag` repo 本身，不要在用户工作目录里再创建一层 `okf-rag/`。`.okf-rag/` 作为目录骨架保留，但里面生成出来的索引、缓存、状态都是可删除的。复制后用 `okf-rag ingest --force` 重建。
 
 正式发布包还必须带上预编译 Windows runtime，避免用户二次编译：
 
@@ -70,7 +68,7 @@ okf-rag-workspace\bin\okf-rag.exe ingest --force
 node scripts/setup_okf_rag_workspace.js
 ```
 
-这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改机器本地的 `.codex/config.toml`。请用 `.codex/config.toml.example` 作为模板。
+这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改 `.codex/config.toml`。如果你在这个源码 repo 里，可以用 `.codex/config.toml.example` 作为模板；如果是在别的用户工作目录，直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
 
 ## CLI
 
@@ -232,7 +230,7 @@ okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candida
 
 ## Ignore 规则
 
-运行期生成文件不进源码管理，但 demo 骨架和 OKF truth 要保留：
+运行期生成文件不进源码管理，但 demo OKF truth 要保留：
 
 ```gitignore
 /.okf-rag/*
@@ -241,6 +239,5 @@ okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candida
 /.codex/*
 !/.codex/
 !/.codex/config.toml.example
-!/okf-rag/
 !/okf-rag-workspace/
 ```

@@ -23,7 +23,7 @@ const SCRIPT_FILES = [
   "setup_okf_rag_workspace.js",
 ];
 
-const COPY_DIRS = ["okf-rag", "okf-rag-workspace"];
+const COPY_DIRS = ["okf-rag-workspace"];
 
 function parseArgs(argv) {
   const args = {
@@ -313,10 +313,6 @@ function main() {
   copyFileIfExists(path.join(metaSource, "README.md"), metaDest);
   copyFileIfExists(path.join(metaSource, ".gitkeep"), metaDest);
   copyDirIfExists(path.join(metaSource, "models"), path.join(metaDest, "models"));
-
-  const codexSource = path.join(rootPath, ".codex");
-  const codexDest = path.join(packagePath, ".codex");
-  copyFileIfExists(path.join(codexSource, "config.toml.example"), codexDest);
 
   if (args.zip) {
     const zipPath = path.join(distPath, `${packageName}.zip`);

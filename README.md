@@ -9,18 +9,16 @@ Local-first OKF retrieval with Markdown as the only truth.
 ## Directory Contract
 
 - `.okf-rag/`: temporary runtime state. It can be deleted and may contain stale indexes, reports, caches, local model state, and watcher state.
-- `okf-rag/`: the Rust source repository name when published.
-- `okf-rag-workspace/`: user workspace. By default, OKF Markdown truth files live under `okf-rag-workspace/okfs/`.
+- `okf-rag-workspace/`: user workspace and runtime install location. OKF Markdown truth files live under `okf-rag-workspace/okfs/`, and the workspace-local executable lives under `okf-rag-workspace/bin/`.
 
-For setup demos and agent handoff, copy all three core directories together:
+For setup demos and agent handoff, copy the two workspace directories together:
 
 ```text
 .okf-rag/
-okf-rag/
 okf-rag-workspace/
 ```
 
-`.okf-rag/` is included as a scaffold but its generated contents are disposable. Rebuild it after copying with `okf-rag ingest --force`.
+The Rust source repository is the cloned `okf-rag` repo itself. Do not create a nested `okf-rag/` directory inside a user workspace. `.okf-rag/` is included as a scaffold but its generated contents are disposable. Rebuild it after copying with `okf-rag ingest --force`.
 
 Release packages must also include the prebuilt Windows runtime so users do not need to compile Rust:
 
@@ -72,7 +70,7 @@ After `git clone`, initialize the local directory scaffold:
 node scripts/setup_okf_rag_workspace.js
 ```
 
-This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit the machine-local `.codex/config.toml`; use `.codex/config.toml.example` as the template.
+This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`. If you are inside this source repo, you can use `.codex/config.toml.example` as a template; for any other workspace, copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
 
 ## CLI
 
@@ -228,7 +226,7 @@ okf-rag-workspace\bin\okf-rag.exe query "domain memory zvec" --top-k 5 --candida
 
 ## Ignore Policy
 
-Generated runtime files stay out of source control, while the demo scaffold and OKF truth stay visible:
+Generated runtime files stay out of source control, while the demo OKF truth stays visible:
 
 ```gitignore
 /.okf-rag/*
@@ -237,6 +235,5 @@ Generated runtime files stay out of source control, while the demo scaffold and 
 /.codex/*
 !/.codex/
 !/.codex/config.toml.example
-!/okf-rag/
 !/okf-rag-workspace/
 ```
