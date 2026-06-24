@@ -7,7 +7,7 @@ fn main() {
     let repo_root = manifest_dir
         .parent()
         .and_then(|path| path.parent())
-        .expect("crate should live under crates/okr-rag");
+        .expect("crate should live under crates/okf-rag");
     let zvec_dir = repo_root.join("third_party/zvec-prebuilt-x86_64-pc-windows-msvc");
     let zvec_dll_path = zvec_dir.join("zvec_c_api.dll");
     let ort_lib_dir = repo_root

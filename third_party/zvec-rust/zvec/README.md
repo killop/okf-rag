@@ -1,6 +1,6 @@
 # zvec
 
-Vendored Rust bindings for the local OKR-RAG prototype.
+Vendored Rust bindings for the local OKF-RAG prototype.
 
 The native zvec C API runtime is not built from this directory. It is provided by:
 

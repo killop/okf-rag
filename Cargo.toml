@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/okr-rag"]
+members = ["crates/okf-rag"]
 resolver = "2"
 
 [workspace.package]

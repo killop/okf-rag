@@ -1,9 +1,9 @@
-# Objectives and Key Results (OKRs) by Atiim.com
+# Objectives and Key Results (OKFs) by Atiim.com
 
-See https://www.atiim.com/okr-goals-examples/ 
+See https://www.atiim.com/okf-goals-examples/ 
 
 
-## Company OKRs
+## Company OKFs
 
 
 Objective: Grow Our Corporate Global Business
@@ -56,10 +56,10 @@ Key results:
 * Win a “Best Product of the Year” award at the industry conference
 
 
-## Marketing OKRs
+## Marketing OKFs
 
 
-### Demand Generation OKRs
+### Demand Generation OKFs
 
 Objective: Generate More Marketing Qualified Leads (MQLs)
 
@@ -98,7 +98,7 @@ Key results:
 * Generate 20% of closed-won sales via ABM efforts in Q4
 
  
-### Online Marketing OKRs
+### Online Marketing OKFs
 
 
 Objective: Improve Our Website and Grow the Conversions
@@ -132,7 +132,7 @@ Key results:
 * Improve our website loading speed
  
 
-### Content Marketing OKRs
+### Content Marketing OKFs
 
 
 Objective: Launch the New Monthly Newsletter Successfully
@@ -157,7 +157,7 @@ Key results:
 * Get 5,000 subscribers on our blog
  
 
-### Public Relations OKRs & Analyst Relations OKRs
+### Public Relations OKFs & Analyst Relations OKFs
 
 
 Objective: Increase Our Brand Awareness
@@ -184,7 +184,7 @@ Key results:
 * Do 2 analyst calls – provide the new product launch update
  
 
-### Community Manager OKRs
+### Community Manager OKFs
 
 
 Objective: Launch a New Customer Community
@@ -209,7 +209,7 @@ Key results:
 * Research and publish the Industry Report & Infographics for the community
  
 
-### Product Marketing OKRs
+### Product Marketing OKFs
 
 
 Objective: Launch the New Product Successfully
@@ -225,7 +225,7 @@ Key results:
 * Finalize product datasheets, feature briefs and sales enablement info
  
 
-### Partner Marketing OKRs
+### Partner Marketing OKFs
 
 Objective: Create a Community for our Partners/Resellers (MQLs)
 
@@ -238,10 +238,10 @@ Key results:
 * Do a 5-city Lunch & Learn event for partners
 
 
-## Sales OKRs
+## Sales OKFs
 
 
-### Sales Group OKRs
+### Sales Group OKFs
 
 
 Objective: Generate new bookings pipeline
@@ -281,7 +281,7 @@ Key results:
 * Do regular monthly anonymous surveys of SDRs and AEs and get their feedback
  
 
-### Sales Manager OKRs
+### Sales Manager OKFs
 
 Objective: Grow Our Sales in the Central region
 
@@ -303,7 +303,7 @@ Key results:
 * Implement a new sales training program for our South American team
 
 * Receive 5-star reviews from our costumers who will serve as references
-SDR Manager OKRs
+SDR Manager OKFs
 
 
 Objective: Implement SDR social selling process
@@ -335,7 +335,7 @@ Key results:
 * Have regular weekly alignment meetings with Customer Success
  
 
-### Sales Enablement OKRs
+### Sales Enablement OKFs
 
 
 Objective: Enable Our Sales to Be More Successful
@@ -368,7 +368,7 @@ Key results:
 * Review retrospective Sales Results metrics and send a weekly summary to the team
  
 
-### Channel Partner Sales OKRs
+### Channel Partner Sales OKFs
 
 
 Objective: Grow Sales Through our Channel Partner
@@ -384,10 +384,10 @@ Key results:
 * Improve the channel partner onboarding process and documents
 
 
-## Human Resources OKRs
+## Human Resources OKFs
 
 
-### VP of HR OKRs & People Ops OKRs
+### VP of HR OKFs & People Ops OKFs
 
 Objective: Create an Exceptional Corporate Culture / Delight Our Employees
 
@@ -395,7 +395,7 @@ Key results:
 
 * Launch an ongoing 2-way closed-loop feedback process
 
-* Create clarity of all departments and teams via clear OKR goals
+* Create clarity of all departments and teams via clear OKF goals
 
 * Achieve a weekly Employee Satisfaction / Pulse Score of 8+
 
@@ -476,10 +476,10 @@ Key results:
 * Announce new annual reviews to serve as a summary for the ongoing process
 
 
-## Engineering OKRs
+## Engineering OKFs
 
 
-### VP of Engineering OKRs
+### VP of Engineering OKFs
 
 
 Objective: Launch the New Product Architecture
@@ -504,7 +504,7 @@ Key results:
 * Maintain a 4:1 onsite “Interview : Hire” ratio
 
 
-### QA Engineer OKRs
+### QA Engineer OKFs
 
 
 Objective: Drive Quality for Features in Our New Release
@@ -531,7 +531,7 @@ Key results:
 * Create Knowledge Base documentation
 
 
-### Software Engineer OKRs
+### Software Engineer OKFs
 
 
 Objective: Improve the Email Delivery Architecture
@@ -552,7 +552,7 @@ Key results:
 * Get an NPS score of 7
 
 
-## Product Management OKRs
+## Product Management OKFs
 
 
 Objective: Launch the New Product Successfully
@@ -581,7 +581,7 @@ Key results:
 * Get internal feedback score of 10/10 from the sales team
 
 
-## Customer Success OKRs
+## Customer Success OKFs
 
 Objective: Customer Success
 
@@ -605,7 +605,7 @@ Key results:
 * Reach out to customers who appear to be at-risk
 
 
-## Customer Support OKRs
+## Customer Support OKFs
 
 
 Objective: Deliver a World-Class Customer Support Experience
@@ -656,7 +656,7 @@ Key results:
 * Track and report on Top 10 Customers by Active Tickets
 
 
-## Finance OKRs
+## Finance OKFs
 
 
 Objective: Improve our Annual Budgeting Process
@@ -681,7 +681,7 @@ Key results:
 * Ensure we close our financials within 2 weeks of a quarter
 
 
-## Operations OKRs
+## Operations OKFs
 
 Objective: Improve our IT and Infrastructure
 

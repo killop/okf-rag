@@ -2,8 +2,8 @@
 stage: Plan
 group: Product Planning
 info: To determine the technical writer assigned to the Stage/Group associated with this page, see <https://handbook.gitlab.com/handbook/product/ux/technical-writing/#assignments>
-description: Create, edit, and maintain objectives and key results (OKRs).
-title: Objectives and key results (OKR)
+description: Create, edit, and maintain objectives and key results (OKFs).
+title: Objectives and key results (OKF)
 ---
 
 {{< details >}}
@@ -15,7 +15,7 @@ title: Objectives and key results (OKR)
 
 {{< history >}}
 
-- [Introduced](https://gitlab.com/gitlab-org/gitlab/-/merge_requests/103355) in GitLab 15.6 [with a flag](../administration/feature_flags/_index.md) named `okrs_mvc`. Disabled by default.
+- [Introduced](https://gitlab.com/gitlab-org/gitlab/-/merge_requests/103355) in GitLab 15.6 [with a flag](../administration/feature_flags/_index.md) named `okfs_mvc`. Disabled by default.
 
 {{< /history >}}
 
@@ -24,20 +24,20 @@ title: Objectives and key results (OKR)
 > For more information, see the history.
 > This feature is available for testing, but not ready for production use.
 
-[Objectives and key results](https://en.wikipedia.org/wiki/OKR) (OKRs) are a framework for setting
+[Objectives and key results](https://en.wikipedia.org/wiki/OKF) (OKFs) are a framework for setting
 and tracking goals that are aligned with your organization's overall strategy and vision.
 
 The objective and the key result in GitLab share many features. In the documentation, the term
-**OKRs** refers to both objectives and key results.
+**OKFs** refers to both objectives and key results.
 
-OKRs are a type of work item, a step towards [default issue types](https://gitlab.com/gitlab-org/gitlab/-/issues/323404)
+OKFs are a type of work item, a step towards [default issue types](https://gitlab.com/gitlab-org/gitlab/-/issues/323404)
 in GitLab.
 For the roadmap of migrating [issues](project/issues/_index.md) and [epics](group/epics/_index.md)
 to work items and adding custom work item types, see
 [epic 6033](https://gitlab.com/groups/gitlab-org/-/epics/6033) or the
 [Plan direction page](https://about.gitlab.com/direction/plan/).
 
-## Designing effective OKRs
+## Designing effective OKFs
 
 Use objectives and key results to align your workforce towards common goals and track the progress.
 Set a big goal with an objective and use [child objectives and key results](#child-objectives-and-key-results)
@@ -51,14 +51,14 @@ organization by connecting their work to overall company strategy.
 **how you know if you have reached your goal** (objective).
 By achieving a specific outcome (key result), you create progress for the linked objective.
 
-To know if your OKR makes sense, you can use this sentence:
+To know if your OKF makes sense, you can use this sentence:
 
 <!-- vale gitlab_base.FutureTense = NO -->
 > I/we will accomplish (objective) by (date) through attaining and achieving the following metrics (key results).
 <!-- vale gitlab_base.FutureTense = YES -->
 
-To learn how to create better OKRs and how we use them at GitLab, see the
-[Objectives and Key Results handbook page](https://handbook.gitlab.com/handbook/company/okrs/).
+To learn how to create better OKFs and how we use them at GitLab, see the
+[Objectives and Key Results handbook page](https://handbook.gitlab.com/handbook/company/okfs/).
 
 ## Create an objective
 
@@ -108,9 +108,9 @@ Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-To edit an OKR:
+To edit an OKF:
 
-1. [Open the objective](okrs.md#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
+1. [Open the objective](okfs.md#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
 1. Optional. To edit the title, select it, make your changes, and select any area outside the title
    text box.
 1. Optional. To edit the description, select the edit icon ({{< icon name="pencil" >}}), make your changes, and
@@ -124,7 +124,7 @@ To edit an OKR:
 
 {{< /history >}}
 
-If an OKR description is long, GitLab displays only part of it.
+If an OKF description is long, GitLab displays only part of it.
 To see the whole description, you must select **Read more**.
 This truncation makes it easier to find other elements on the page without scrolling through lengthy text.
 
@@ -157,7 +157,7 @@ To show the sidebar again:
 
 - Repeat the previous steps and select **Show sidebar**.
 
-## View OKR system notes
+## View OKF system notes
 
 {{< history >}}
 
@@ -176,12 +176,12 @@ Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-You can view all the [system notes](project/system_notes.md) related to the OKR. By default they are sorted by **Oldest first**.
+You can view all the [system notes](project/system_notes.md) related to the OKF. By default they are sorted by **Oldest first**.
 You can always change the sorting order to **Newest first**, which is remembered across sessions.
 
 ## Comments and threads
 
-You can add [comments](discussions/_index.md) and reply to threads in OKRs.
+You can add [comments](discussions/_index.md) and reply to threads in OKFs.
 
 ## Assign users
 
@@ -191,15 +191,15 @@ You can add [comments](discussions/_index.md) and reply to threads in OKRs.
 
 {{< /history >}}
 
-To show who is responsible for an OKR, you can assign users to it.
+To show who is responsible for an OKF, you can assign users to it.
 
 Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-To change the assignee on an OKR:
+To change the assignee on an OKF:
 
-1. [Open the objective](okrs.md#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
+1. [Open the objective](okfs.md#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
 1. Next to **Assignees**, select **Add assignees**.
 1. From the dropdown list, select the users to add as an assignee.
 1. Select any area outside the dropdown list.
@@ -216,11 +216,11 @@ Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-Use [labels](project/labels.md) to organize OKRs among teams.
+Use [labels](project/labels.md) to organize OKFs among teams.
 
-To add labels to an OKR:
+To add labels to an OKF:
 
-1. [Open the objective](okrs.md#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
+1. [Open the objective](okfs.md#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
 1. Next to **Labels**, select **Add labels**.
 1. From the dropdown list, select the labels to add.
 1. Select any area outside the dropdown list.
@@ -243,7 +243,7 @@ Prerequisites:
 
 To add an objective to a milestone:
 
-1. [Open the objective](okrs.md#view-an-objective) that you want to edit.
+1. [Open the objective](okfs.md#view-an-objective) that you want to edit.
 1. Next to **Milestone**, select **Add to milestone**.
    If an objective already belongs to a milestone, the dropdown list shows the current milestone.
 1. From the dropdown list, select the milestone to be associated with the objective.
@@ -290,16 +290,16 @@ To set progress of an objective or key result:
 
 To better track the risk in meeting your goals, you can assign a [health status](project/issues/managing_issues.md#health-status)
 to each objective and key result.
-You can use health status to signal to others in your organization whether OKRs are progressing
+You can use health status to signal to others in your organization whether OKFs are progressing
 as planned or need attention to stay on schedule.
 
 Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-To set health status of an OKR:
+To set health status of an OKF:
 
-1. [Open the key result](okrs.md#view-a-key-result) that you want to edit.
+1. [Open the key result](okfs.md#view-a-key-result) that you want to edit.
 1. Next to **Health status**, select the dropdown list and select the desired health status.
 
 ## Promote a key result to an objective
@@ -324,12 +324,12 @@ To promote a key result:
 
 Alternatively, use the [`/promote_to objective` quick action](project/quick_actions.md#promote_to).
 
-## Convert an OKR to another item type
+## Convert an OKF to another item type
 
 {{< history >}}
 
 - [Introduced](https://gitlab.com/gitlab-org/gitlab/-/issues/385131) in GitLab 17.8 [with a flag](../administration/feature_flags/_index.md) named `work_items_beta`. Disabled by default.
-- [Moved](https://gitlab.com/gitlab-org/gitlab/-/issues/385131) [to the flag](../administration/feature_flags/_index.md) named `okrs_mvc`. For current flag state, see the top of this page.
+- [Moved](https://gitlab.com/gitlab-org/gitlab/-/issues/385131) [to the flag](../administration/feature_flags/_index.md) named `okfs_mvc`. For current flag state, see the top of this page.
 
 {{< /history >}}
 
@@ -345,10 +345,10 @@ Convert an objective or key result into another item type, such as:
 
 Prerequisites:
 
-- The OKR you want to convert must not have a parent item assigned.
-- The OKR you want to convert must not have any child items.
+- The OKF you want to convert must not have a parent item assigned.
+- The OKF you want to convert must not have any child items.
 
-To convert an OKR into another item type:
+To convert an OKF into another item type:
 
 1. In the top bar, select **Search or go to** and find your project.
 1. In the left sidebar, select **Plan** > **Work items**, then select your issue to view it.
@@ -401,7 +401,7 @@ To copy the objective's or key result's email address:
 1. In the left sidebar, select **Plan** > **Work items**, then select your objective to view it.
 1. In the upper-right corner, select the vertical ellipsis ({{< icon name="ellipsis_v" >}}), then select **Copy objective email address** or **Copy key result email address**.
 
-## Close an OKR
+## Close an OKF
 
 {{< history >}}
 
@@ -409,26 +409,26 @@ To copy the objective's or key result's email address:
 
 {{< /history >}}
 
-When an OKR is achieved, you can close it.
-The OKR is marked as closed but is not deleted.
+When an OKF is achieved, you can close it.
+The OKF is marked as closed but is not deleted.
 
 Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-To close an OKR:
+To close an OKF:
 
-1. [Open the objective](okrs.md#view-an-objective) that you want to edit.
+1. [Open the objective](okfs.md#view-an-objective) that you want to edit.
 1. Next to **Status**, select **Closed**.
 
-You can reopen a closed OKR the same way.
+You can reopen a closed OKF the same way.
 
 ## Child objectives and key results
 
 In GitLab, objectives are similar to key results.
 In your workflow, use key results to measure the goal described in the objective.
 
-You can add child objectives to a total of 9 levels. An objective can have up to 100 child OKRs.
+You can add child objectives to a total of 9 levels. An objective can have up to 100 child OKFs.
 Key results are children of objectives and cannot have children items themselves.
 
 Child objectives and key results are available in the **Child items** section
@@ -488,7 +488,7 @@ To add an existing key result to an objective:
 
 1. In an objective, in the **Child items** section, select **Add** and then
    select **Existing key result**.
-1. Search for the desired OKR by entering part of its title, then selecting the
+1. Search for the desired OKF by entering part of its title, then selecting the
    desired match.
 
    To add multiple objectives, repeat this step.
@@ -507,14 +507,14 @@ Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
 
-By default, child OKRs are ordered by creation date.
+By default, child OKFs are ordered by creation date.
 To reorder them, drag them around.
 
-### Schedule OKR check-in reminders
+### Schedule OKF check-in reminders
 
 {{< history >}}
 
-- [Introduced](https://gitlab.com/gitlab-org/gitlab/-/issues/422761) in GitLab 16.4 [with a flag](../administration/feature_flags/_index.md) named `okr_checkin_reminders`. Disabled by default.
+- [Introduced](https://gitlab.com/gitlab-org/gitlab/-/issues/422761) in GitLab 16.4 [with a flag](../administration/feature_flags/_index.md) named `okf_checkin_reminders`. Disabled by default.
 - [Changed](https://gitlab.com/gitlab-org/gitlab/-/merge_requests/169256) the minimum user role from Reporter to Planner in GitLab 17.7.
 
 {{< /history >}}
@@ -554,9 +554,9 @@ To schedule a recurring reminder for an objective, in a new comment use the
 Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role for the project.
-- The parent objective and child OKR must belong to the same project.
+- The parent objective and child OKF must belong to the same project.
 
-To set an objective as a parent of an OKR:
+To set an objective as a parent of an OKF:
 
 1. [Open the objective](#view-an-objective) or [key result](#view-a-key-result) that you want to edit.
 1. Next to **Parent**, from the dropdown list, select the parent to add.
@@ -565,7 +565,7 @@ To set an objective as a parent of an OKR:
 To remove the parent of the objective or key result,
 next to **Parent**, select the dropdown list and then select **Unassign**.
 
-## Confidential OKRs
+## Confidential OKFs
 
 {{< history >}}
 
@@ -573,12 +573,12 @@ next to **Parent**, select the dropdown list and then select **Unassign**.
 
 {{< /history >}}
 
-Confidential OKRs are OKRs visible only to members of a project with
-[sufficient permissions](#who-can-see-confidential-okrs).
-You can use confidential OKRs to keep security vulnerabilities private or prevent surprises from
+Confidential OKFs are OKFs visible only to members of a project with
+[sufficient permissions](#who-can-see-confidential-okfs).
+You can use confidential OKFs to keep security vulnerabilities private or prevent surprises from
 leaking out.
 
-### Make an OKR confidential
+### Make an OKF confidential
 
 {{< history >}}
 
@@ -586,17 +586,17 @@ leaking out.
 
 {{< /history >}}
 
-By default, OKRs are public.
-You can make an OKR confidential when you create or edit it.
+By default, OKFs are public.
+You can make an OKF confidential when you create or edit it.
 
-#### In a new OKR
+#### In a new OKF
 
 When you create a new objective, a checkbox right below the text area is available to mark the
-OKR as confidential.
+OKF as confidential.
 
-Select that checkbox and then select **Create objective** or **Create key result** to create the OKR.
+Select that checkbox and then select **Create objective** or **Create key result** to create the OKF.
 
-#### In an existing OKR
+#### In an existing OKF
 
 Prerequisites:
 
@@ -610,13 +610,13 @@ Prerequisites:
   - To add child objectives or key results to a confidential objective, you must first make them
     confidential.
 
-To change the confidentiality of an existing OKR:
+To change the confidentiality of an existing OKF:
 
 1. [Open the objective](#view-an-objective) or [key result](#view-a-key-result).
 1. In the upper-right corner, select the vertical ellipsis ({{< icon name="ellipsis_v" >}}).
 1. Select **Turn on confidentiality** or **Turn off confidentiality**.
 
-### Who can see confidential OKRs
+### Who can see confidential OKFs
 
 {{< history >}}
 
@@ -624,33 +624,33 @@ To change the confidentiality of an existing OKR:
 
 {{< /history >}}
 
-When an OKR is made confidential, only users with the Planner, Reporter, Developer, Maintainer, or Owner role for the project have
-access to the OKR.
+When an OKF is made confidential, only users with the Planner, Reporter, Developer, Maintainer, or Owner role for the project have
+access to the OKF.
 Users with Guest or [Minimal](permissions.md#users-with-minimal-access) roles can't access
-the OKR even if they were actively participating before the change.
+the OKF even if they were actively participating before the change.
 
-However, a user with the **Guest role** can create confidential OKRs, but can only view the ones
+However, a user with the **Guest role** can create confidential OKFs, but can only view the ones
 that they created themselves.
 
-Users with the Guest role or non-members can read the confidential OKR if they are assigned to the OKR.
-When a Guest user or non-member is unassigned from a confidential OKR, they can no longer view it.
+Users with the Guest role or non-members can read the confidential OKF if they are assigned to the OKF.
+When a Guest user or non-member is unassigned from a confidential OKF, they can no longer view it.
 
-Confidential OKRs are hidden in search results for users without the necessary permissions.
+Confidential OKFs are hidden in search results for users without the necessary permissions.
 
-### Confidential OKR indicators
+### Confidential OKF indicators
 
-Confidential OKRs are visually different from regular OKRs in a few ways.
-Wherever OKRs are listed, you can see the confidential ({{< icon name="eye-slash" >}}) icon
-next to the OKRs that are marked as confidential.
+Confidential OKFs are visually different from regular OKFs in a few ways.
+Wherever OKFs are listed, you can see the confidential ({{< icon name="eye-slash" >}}) icon
+next to the OKFs that are marked as confidential.
 
-If you don't have [enough permissions](#who-can-see-confidential-okrs),
-you cannot see confidential OKRs at all.
+If you don't have [enough permissions](#who-can-see-confidential-okfs),
+you cannot see confidential OKFs at all.
 
-Likewise, while inside the OKR, you can see the confidential ({{< icon name="eye-slash" >}}) icon right next to
+Likewise, while inside the OKF, you can see the confidential ({{< icon name="eye-slash" >}}) icon right next to
 the breadcrumbs.
 
 Every change from regular to confidential and vice versa, is indicated by a
-system note in the OKR's comments, for example:
+system note in the OKF's comments, for example:
 
 - {{< icon name="eye-slash" >}} Jo Garcia made the issue confidential 5 minutes ago
 - {{< icon name="eye" >}} Jo Garcia made the issue visible to everyone just now
@@ -669,23 +669,23 @@ system note in the OKR's comments, for example:
 > For more information, see the history.
 > This feature is available for testing, but not ready for production use.
 
-You can prevent public comments in an OKR.
+You can prevent public comments in an OKF.
 When you do, only project members can add and edit comments.
 
 Prerequisites:
 
 - You must have the Planner, Reporter, Developer, Maintainer, or Owner role.
 
-To lock an OKR:
+To lock an OKF:
 
 1. In the upper-right corner, select the vertical ellipsis ({{< icon name="ellipsis_v" >}}).
 1. Select **Lock discussion**.
 
 A system note is added to the page details.
 
-If an OKR is closed with a locked discussion, then you cannot reopen it until the discussion is unlocked.
+If an OKF is closed with a locked discussion, then you cannot reopen it until the discussion is unlocked.
 
-## Linked items in OKRs
+## Linked items in OKFs
 
 {{< history >}}
 

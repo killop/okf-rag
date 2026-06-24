@@ -1,4 +1,4 @@
-"""Generate OKR markdown memory data and benchmark hybrid retrieval.
+"""Generate OKF markdown memory data and benchmark hybrid retrieval.
 
 The script turns public Objective/Key Results examples into OKF + Nocturne
 markdown concept files, then compares body/OKF/full/full-hybrid retrieval.
@@ -31,7 +31,7 @@ from knowledge_memory_index import (
 from minilm_onnx_embed import MiniLMOnnxEmbedder
 
 
-DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/joelparkerhenderson/objectives-and-key-results/main/examples/okrs-by-atiim/index.md"
+DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/joelparkerhenderson/objectives-and-key-results/main/examples/okfs-by-atiim/index.md"
 PROFILE_CONFIGS = (
     {"name": "body", "embedding_profile": "body", "rerank": False},
     {"name": "okf", "embedding_profile": "okf", "rerank": False},
@@ -64,8 +64,8 @@ STOPWORDS = {
     "more",
     "new",
     "of",
-    "okr",
-    "okrs",
+    "okf",
+    "okfs",
     "our",
     "results",
     "the",
@@ -75,7 +75,7 @@ STOPWORDS = {
 
 
 @dataclass(frozen=True)
-class SourceOkr:
+class SourceOkf:
     ordinal: int
     domain: str
     objective: str
@@ -83,7 +83,7 @@ class SourceOkr:
 
 
 @dataclass(frozen=True)
-class OkrCase:
+class OkfCase:
     case_id: str
     query_type: str
     query: str
@@ -91,7 +91,7 @@ class OkrCase:
 
 
 @dataclass(frozen=True)
-class OkrHit:
+class OkfHit:
     rank: int
     score: float
     concept_id: str
@@ -99,9 +99,9 @@ class OkrHit:
 
 
 @dataclass(frozen=True)
-class OkrResult:
-    case: OkrCase
-    hits: tuple[OkrHit, ...]
+class OkfResult:
+    case: OkfCase
+    hits: tuple[OkfHit, ...]
     latency_ms: float
 
     def first_rank(self) -> int | None:
@@ -129,7 +129,7 @@ def now_id() -> str:
 
 def slugify(text: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9_]+", "-", text.lower()).strip("-")
-    return slug or "okr"
+    return slug or "okf"
 
 
 def clean_line(line: str) -> str:
@@ -168,20 +168,20 @@ def ensure_source(source_path: Path, source_url: str) -> None:
     urlretrieve(source_url, source_path)
 
 
-def parse_source_okrs(source_path: Path) -> list[SourceOkr]:
+def parse_source_okfs(source_path: Path) -> list[SourceOkf]:
     lines = source_path.read_text(encoding="utf-8").splitlines()
     domain_stack: list[str] = []
-    okrs: list[SourceOkr] = []
+    okfs: list[SourceOkf] = []
     current_objective = ""
     current_key_results: list[str] = []
 
     def flush() -> None:
         nonlocal current_objective, current_key_results
         if current_objective and current_key_results:
-            domain = " / ".join(domain_stack[-2:]) if domain_stack else "General OKRs"
-            okrs.append(
-                SourceOkr(
-                    ordinal=len(okrs),
+            domain = " / ".join(domain_stack[-2:]) if domain_stack else "General OKFs"
+            okfs.append(
+                SourceOkf(
+                    ordinal=len(okfs),
                     domain=domain,
                     objective=current_objective,
                     key_results=tuple(current_key_results),
@@ -214,17 +214,17 @@ def parse_source_okrs(source_path: Path) -> list[SourceOkr]:
         if current_objective and bullet:
             current_key_results.append(clean_line(bullet.group(1)))
     flush()
-    return okrs
+    return okfs
 
 
-def summarize_okr(okr: SourceOkr) -> dict[str, Any]:
-    source_text = " ".join([okr.objective, *okr.key_results])
+def summarize_okf(okf: SourceOkf) -> dict[str, Any]:
+    source_text = " ".join([okf.objective, *okf.key_results])
     keywords = tokens(source_text)[:8]
     metrics = extract_metrics(source_text)[:8]
-    first_results = "; ".join(okr.key_results[:2])
-    theme = ", ".join(keywords[:4]) if keywords else okr.objective.lower()
+    first_results = "; ".join(okf.key_results[:2])
+    theme = ", ".join(keywords[:4]) if keywords else okf.objective.lower()
     summary = (
-        f"This OKR focuses on {theme} within {okr.domain}. "
+        f"This OKF focuses on {theme} within {okf.domain}. "
         f"Progress is measured through key results such as {first_results}."
     )
     return {
@@ -235,59 +235,59 @@ def summarize_okr(okr: SourceOkr) -> dict[str, Any]:
     }
 
 
-def write_okr_bundle(okrs: list[SourceOkr], bundle_root: Path, source_url: str) -> None:
+def write_okf_bundle(okfs: list[SourceOkf], bundle_root: Path, source_url: str) -> None:
     objectives_dir = bundle_root / "objectives"
     objectives_dir.mkdir(parents=True, exist_ok=True)
-    for okr in okrs:
-        summary = summarize_okr(okr)
-        slug = f"{okr.ordinal:03d}-{slugify(okr.objective)}"
-        tags = ["okr", "objective", slugify(okr.domain), *summary["keywords"][:5]]
+    for okf in okfs:
+        summary = summarize_okf(okf)
+        slug = f"{okf.ordinal:03d}-{slugify(okf.objective)}"
+        tags = ["okf", "objective", slugify(okf.domain), *summary["keywords"][:5]]
         concept_id = f"objectives/{slug}"
         disclosure = (
-            f"When planning OKRs for {okr.domain} around {summary['theme']} "
+            f"When planning OKFs for {okf.domain} around {summary['theme']} "
             f"or reviewing measurable key results."
         )
         frontmatter = {
-            "type": "OKR Objective",
-            "title": okr.objective,
+            "type": "OKF Objective",
+            "title": okf.objective,
             "description": summary["summary"],
             "resource": f"{source_url}#{slug}",
             "tags": tags,
             "timestamp": "2026-06-23T00:00:00Z",
             "nocturne": {
-                "uri": f"okr://{slugify(okr.domain).replace('-', '_')}/{slug}",
+                "uri": f"okf://{slugify(okf.domain).replace('-', '_')}/{slug}",
                 "disclosure": disclosure,
                 "priority": 2,
                 "aliases": [
                     {
-                        "uri": f"planning://okr/{slug}",
-                        "disclosure": f"When selecting OKR examples for {okr.domain}.",
+                        "uri": f"planning://okf/{slug}",
+                        "disclosure": f"When selecting OKF examples for {okf.domain}.",
                         "priority": 3,
                     }
                 ],
             },
-            "okr": {
-                "domain": okr.domain,
-                "objective": okr.objective,
-                "key_results": list(okr.key_results),
+            "okf": {
+                "domain": okf.domain,
+                "objective": okf.objective,
+                "key_results": list(okf.key_results),
                 "metrics": summary["metrics"],
                 "keywords": summary["keywords"],
             },
         }
         body_lines = [
-            f"# {okr.objective}",
+            f"# {okf.objective}",
             "",
-            f"Domain: {okr.domain}",
+            f"Domain: {okf.domain}",
             "",
             "## Summary",
             summary["summary"],
             "",
             "## Objective",
-            okr.objective,
+            okf.objective,
             "",
             "## Key Results",
         ]
-        body_lines.extend(f"- {key_result}" for key_result in okr.key_results)
+        body_lines.extend(f"- {key_result}" for key_result in okf.key_results)
         body_lines.extend(
             [
                 "",
@@ -311,30 +311,30 @@ def load_bundle_concepts(bundle_root: Path):
     return concepts
 
 
-def build_cases(concepts, max_cases_per_concept: int) -> list[OkrCase]:
-    cases: list[OkrCase] = []
+def build_cases(concepts, max_cases_per_concept: int) -> list[OkfCase]:
+    cases: list[OkfCase] = []
     for concept in concepts:
-        okr_meta = concept.frontmatter.get("okr") if isinstance(concept.frontmatter.get("okr"), dict) else {}
-        objective = str(okr_meta.get("objective") or concept.title)
-        domain = str(okr_meta.get("domain") or "")
-        key_results = [str(item) for item in okr_meta.get("key_results") or []]
-        metrics = [str(item) for item in okr_meta.get("metrics") or []]
-        keywords = [str(item) for item in okr_meta.get("keywords") or []]
+        okf_meta = concept.frontmatter.get("okf") if isinstance(concept.frontmatter.get("okf"), dict) else {}
+        objective = str(okf_meta.get("objective") or concept.title)
+        domain = str(okf_meta.get("domain") or "")
+        key_results = [str(item) for item in okf_meta.get("key_results") or []]
+        metrics = [str(item) for item in okf_meta.get("metrics") or []]
+        keywords = [str(item) for item in okf_meta.get("keywords") or []]
         concept_id = concept.concept_id
         local = [
-            OkrCase(
+            OkfCase(
                 case_id=f"objective_{slugify(concept_id)}",
                 query_type="objective",
-                query=f"Which OKR objective focuses on {objective}?",
+                query=f"Which OKF objective focuses on {objective}?",
                 expected=(concept_id,),
             ),
-            OkrCase(
+            OkfCase(
                 case_id=f"summary_{slugify(concept_id)}",
                 query_type="summary",
-                query=f"I need an OKR for {domain} about {', '.join(keywords[:4])}. Which objective fits?",
+                query=f"I need an OKF for {domain} about {', '.join(keywords[:4])}. Which objective fits?",
                 expected=(concept_id,),
             ),
-            OkrCase(
+            OkfCase(
                 case_id=f"disclosure_{slugify(concept_id)}",
                 query_type="disclosure",
                 query=concept.disclosure,
@@ -343,19 +343,19 @@ def build_cases(concepts, max_cases_per_concept: int) -> list[OkrCase]:
         ]
         if key_results:
             local.append(
-                OkrCase(
+                OkfCase(
                     case_id=f"key_result_{slugify(concept_id)}",
                     query_type="key_result",
-                    query=f"Which OKR includes a key result to {key_results[0]}?",
+                    query=f"Which OKF includes a key result to {key_results[0]}?",
                     expected=(concept_id,),
                 )
             )
         if metrics:
             local.append(
-                OkrCase(
+                OkfCase(
                     case_id=f"metric_{slugify(concept_id)}",
                     query_type="metric",
-                    query=f"Which OKR tracks metrics like {', '.join(metrics[:3])} for {', '.join(keywords[:4])}?",
+                    query=f"Which OKF tracks metrics like {', '.join(metrics[:3])} for {', '.join(keywords[:4])}?",
                     expected=(concept_id,),
                 )
             )
@@ -373,13 +373,13 @@ def percentile(values: Sequence[float], q: float) -> float:
 
 def query_collection(
     collection: zvec.Collection,
-    case: OkrCase,
+    case: OkfCase,
     vector: list[float],
     *,
     top_k: int,
     candidate_k: int,
     rerank: bool,
-) -> OkrResult:
+) -> OkfResult:
     start = time.perf_counter()
     docs = collection.query(
         queries=zvec.Query(field_name="embedding", vector=vector),
@@ -392,7 +392,7 @@ def query_collection(
         docs = docs[:top_k]
     latency_ms = (time.perf_counter() - start) * 1000.0
     hits = tuple(
-        OkrHit(
+        OkfHit(
             rank=rank,
             score=float(getattr(doc, "score", 0.0)),
             concept_id=str(doc.fields.get("concept_id", "")),
@@ -400,10 +400,10 @@ def query_collection(
         )
         for rank, doc in enumerate(docs, start=1)
     )
-    return OkrResult(case=case, hits=hits, latency_ms=latency_ms)
+    return OkfResult(case=case, hits=hits, latency_ms=latency_ms)
 
 
-def metrics_for(results: list[OkrResult], top_ks: Sequence[int]) -> dict[str, Any]:
+def metrics_for(results: list[OkfResult], top_ks: Sequence[int]) -> dict[str, Any]:
     latencies = [result.latency_ms for result in results]
     metrics: dict[str, Any] = {
         "case_count": len(results),
@@ -420,8 +420,8 @@ def metrics_for(results: list[OkrResult], top_ks: Sequence[int]) -> dict[str, An
     return metrics
 
 
-def grouped_metrics(results: list[OkrResult], top_ks: Sequence[int]) -> dict[str, Any]:
-    grouped: dict[str, list[OkrResult]] = {}
+def grouped_metrics(results: list[OkfResult], top_ks: Sequence[int]) -> dict[str, Any]:
+    grouped: dict[str, list[OkfResult]] = {}
     for result in results:
         grouped.setdefault(result.case.query_type, []).append(result)
     return {
@@ -436,7 +436,7 @@ def run_profile(
     bundle_root: Path,
     db_path: Path,
     concepts,
-    cases: list[OkrCase],
+    cases: list[OkfCase],
     query_vectors: list[list[float]],
     embedder: MiniLMOnnxEmbedder,
     batch_size: int,
@@ -512,13 +512,13 @@ def by_type_hit(profile_payload: dict[str, Any], query_type: str, k: int) -> flo
 def render_markdown(payload: dict[str, Any]) -> str:
     query_types = payload["query_types"]
     lines = [
-        "# OKR Hybrid Knowledge Memory Benchmark",
+        "# OKF Hybrid Knowledge Memory Benchmark",
         "",
         f"- Run ID: `{payload['run_id']}`",
         f"- Source URL: `{payload['source_url']}`",
         f"- Source path: `{payload['source_path']}`",
-        f"- OKR bundle: `{payload['bundle']}`",
-        f"- OKR objectives: {payload['okr_count']}",
+        f"- OKF bundle: `{payload['bundle']}`",
+        f"- OKF objectives: {payload['okf_count']}",
         f"- Generated markdown concepts: {payload['concept_count']}",
         f"- Queries: {payload['query_count']}",
         f"- Query types: {', '.join(query_types)}",
@@ -557,7 +557,7 @@ def render_markdown(payload: dict[str, Any]) -> str:
             "",
             "## What Was Generated",
             "",
-            "Each OKR objective was converted into an OKF markdown concept with:",
+            "Each OKF objective was converted into an OKF markdown concept with:",
             "",
             "- OKF frontmatter: type, title, description, resource, tags, timestamp.",
             "- Nocturne metadata: uri, disclosure, priority, aliases.",
@@ -565,9 +565,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
             "",
             "## Caveats",
             "",
-            "- The OKR objectives and key results come from a public example source.",
+            "- The OKF objectives and key results come from a public example source.",
             "- The summaries, tags, disclosures, and benchmark queries are generated deterministically by this script.",
-            "- This measures whether the hybrid memory structure can retrieve generated OKR knowledge points. It is not a human-labeled OKR search benchmark.",
+            "- This measures whether the hybrid memory structure can retrieve generated OKF knowledge points. It is not a human-labeled OKF search benchmark.",
             "",
             "## Failure Counts",
             "",
@@ -582,9 +582,9 @@ def render_markdown(payload: dict[str, Any]) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source-path", default="data/external-okr-source-atiim.md")
+    parser.add_argument("--source-path", default="data/external-okf-source-atiim.md")
     parser.add_argument("--source-url", default=DEFAULT_SOURCE_URL)
-    parser.add_argument("--run-root", default="data/okr-memory-benchmark")
+    parser.add_argument("--run-root", default="data/okf-memory-benchmark")
     parser.add_argument("--output-dir", default="reports")
     parser.add_argument("--run-id", default="")
     parser.add_argument("--max-cases-per-concept", type=int, default=5)
@@ -597,11 +597,11 @@ def main() -> int:
 
     source_path = Path(args.source_path)
     ensure_source(source_path, args.source_url)
-    okrs = parse_source_okrs(source_path)
-    if not okrs:
-        raise SystemExit(f"No OKRs parsed from {source_path}")
+    okfs = parse_source_okfs(source_path)
+    if not okfs:
+        raise SystemExit(f"No OKFs parsed from {source_path}")
 
-    run_id = args.run_id or f"okr-hybrid-{now_id()}"
+    run_id = args.run_id or f"okf-hybrid-{now_id()}"
     run_root = Path(args.run_root) / run_id
     if run_root.exists():
         raise SystemExit(f"Run root already exists: {run_root}")
@@ -609,7 +609,7 @@ def main() -> int:
     db_root = run_root / "zvec"
     db_root.mkdir(parents=True, exist_ok=True)
 
-    write_okr_bundle(okrs, bundle_root, args.source_url)
+    write_okf_bundle(okfs, bundle_root, args.source_url)
     concepts = load_bundle_concepts(bundle_root)
     cases = build_cases(concepts, args.max_cases_per_concept)
     if not cases:
@@ -619,7 +619,7 @@ def main() -> int:
     eval_path.write_text(
         json.dumps(
             {
-                "name": "okr-hybrid-memory",
+                "name": "okf-hybrid-memory",
                 "source_url": args.source_url,
                 "queries": [
                     {
@@ -670,7 +670,7 @@ def main() -> int:
         "source_path": str(source_path),
         "bundle": str(bundle_root),
         "eval": str(eval_path),
-        "okr_count": len(okrs),
+        "okf_count": len(okfs),
         "concept_count": len(concepts),
         "query_count": len(cases),
         "query_types": query_types,
@@ -681,15 +681,15 @@ def main() -> int:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    json_path = output_dir / f"okr-hybrid-memory-benchmark-{run_id}.json"
-    md_path = output_dir / f"okr-hybrid-memory-benchmark-{run_id}.md"
+    json_path = output_dir / f"okf-hybrid-memory-benchmark-{run_id}.json"
+    md_path = output_dir / f"okf-hybrid-memory-benchmark-{run_id}.md"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     md_path.write_text(render_markdown(payload), encoding="utf-8")
 
     print(f"JSON: {json_path}")
     print(f"Markdown: {md_path}")
-    print(f"OKR bundle: {bundle_root}")
-    print(f"OKRs: {len(okrs)} concepts={len(concepts)} queries={len(cases)}")
+    print(f"OKF bundle: {bundle_root}")
+    print(f"OKFs: {len(okfs)} concepts={len(concepts)} queries={len(cases)}")
     for profile in PROFILES:
         result = profiles[profile]
         print(

@@ -423,7 +423,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "okr-rag"
+name = "okf-rag"
 version = "0.1.0"
 dependencies = [
  "ndarray",

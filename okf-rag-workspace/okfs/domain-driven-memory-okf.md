@@ -1,19 +1,19 @@
 ---
-type: OKR
+type: OKF
 title: Generic Domain-Driven Memory System
-description: OKR and test contract for a reusable domain-driven memory system over arbitrary source repositories and knowledge corpora.
+description: OKF and test contract for a reusable domain-driven memory system over arbitrary source repositories and knowledge corpora.
 tags: [domain-memory, okf, zvec, ddd, retrieval]
 timestamp: 2026-06-22T17:36:00+08:00
 nocturne:
-  uri: okr://memory/domain-driven-system
-  disclosure: When designing, validating, or benchmarking a generic domain-driven memory system with OKR-RAG and zvec.
+  uri: okf://memory/domain-driven-system
+  disclosure: When designing, validating, or benchmarking a generic domain-driven memory system with OKF-RAG and zvec.
 source_repositories:
   knowledge_catalog: E:/knowledge-catalog
   matt_skills: E:/github/matt-skills
   zvec: E:/github/zvec
 ---
 
-# Generic Domain-Driven Memory OKR
+# Generic Domain-Driven Memory OKF
 
 This document defines the reusable core. Project-specific repositories are inputs handled by adapters, not assumptions baked into the memory model.
 

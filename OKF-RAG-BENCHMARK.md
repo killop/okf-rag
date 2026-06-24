@@ -1,15 +1,15 @@
-# OKR-RAG Benchmark
+# OKF-RAG Benchmark
 
 Date: 2026-06-24
 
 ## Setup
 
-- Binary: `target\release\okr-rag.exe`
+- Binary: `target\release\okf-rag.exe`
 - Embedding: `minilm-l6-v2-onnx`
-- Model: `.okr-rag/models/all-MiniLM-L6-v2`
+- Model: `.okf-rag/models/all-MiniLM-L6-v2`
 - Vector store: local zvec
-- Corpus: 53 OKR Markdown concepts
-- Eval: `data/okr-memory-benchmark/okr-hybrid-20260623-211957/eval.json`
+- Corpus: 53 OKF Markdown concepts
+- Eval: `data/okf-memory-benchmark/okf-hybrid-20260623-211957/eval.json`
 - Queries: 258
 - TopK: 10
 - CandidateK requested: 100
@@ -17,7 +17,7 @@ Date: 2026-06-24
 
 ## Recall
 
-This eval has one expected OKR concept per query, so recall@K is equivalent to hit@K.
+This eval has one expected OKF concept per query, so recall@K is equivalent to hit@K.
 
 | Metric | Value |
 |---|---:|
@@ -70,19 +70,19 @@ Release build ingest results:
 | Warm embedding cache, forced rebuild | 53 | 0 | 190.061 |
 | Unchanged source, skipped rebuild | 0 | 0 | 71.584 |
 
-The cold cache run uses batched ONNX embedding with dynamic padding. The warm cache run reuses `.okr-rag/cache/embeddings/` vectors and still rebuilds the zvec index. The skipped rebuild path uses `.okr-rag/ingest-state.json` to verify that Markdown content and embedding metadata are unchanged.
+The cold cache run uses batched ONNX embedding with dynamic padding. The warm cache run reuses `.okf-rag/cache/embeddings/` vectors and still rebuilds the zvec index. The skipped rebuild path uses `.okf-rag/ingest-state.json` to verify that Markdown content and embedding metadata are unchanged.
 
 ## Optimizations Applied
 
 - Added embedding cache keyed by embedding provider, model path, and full embedding text hash.
 - Added batch ONNX embedding for ingest.
 - Changed ONNX intra-op thread default from 1 to 4.
-- Added `OKR_RAG_ONNX_BATCH_SIZE` and `OKR_RAG_ONNX_THREADS` environment overrides.
+- Added `OKF_RAG_ONNX_BATCH_SIZE` and `OKF_RAG_ONNX_THREADS` environment overrides.
 - Changed MiniLM tokenization from fixed 256-token padding to batch-longest dynamic padding.
 - Made ingest load the ONNX model only after an embedding cache miss.
 - Added source fingerprint state so unchanged Markdown skips derived index rebuilds.
 
 ## Raw Output
 
-- `.okr-rag/reports/okr-rag-bench-minilm-onnx-release-optimized.json`
-- `.okr-rag/reports/okr-rag-bench-minilm-onnx-release-dynamic-padding.json`
+- `.okf-rag/reports/okf-rag-bench-minilm-onnx-release-optimized.json`
+- `.okf-rag/reports/okf-rag-bench-minilm-onnx-release-dynamic-padding.json`

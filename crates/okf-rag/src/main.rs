@@ -27,9 +27,9 @@ use zvec::{
 const EMBEDDING_DIM: usize = 384;
 const DEFAULT_TOP_K: usize = 5;
 const DEFAULT_CANDIDATE_K: usize = 100;
-const META_DIR: &str = ".okr-rag";
-const WORKSPACE_DIR: &str = "okr-rag-workspace";
-const DEFAULT_OKR_DIR: &str = "okrs";
+const META_DIR: &str = ".okf-rag";
+const WORKSPACE_DIR: &str = "okf-rag-workspace";
+const DEFAULT_OKF_DIR: &str = "okfs";
 const INDEX_DIR: &str = "index/zvec";
 const SLOT_A_INDEX_DIR: &str = "index/zvec-a";
 const SLOT_B_INDEX_DIR: &str = "index/zvec-b";
@@ -49,23 +49,23 @@ const WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 const WATCH_DEBOUNCE: Duration = Duration::from_secs(2);
 const INGEST_LOCK_STALE_AFTER: Duration = Duration::from_secs(300);
 const INGEST_LOCK_WAIT_TIMEOUT: Duration = Duration::from_secs(120);
-const WORKSPACE_INDEX_TEMPLATE: &str = r#"# OKR-RAG Workspace
+const WORKSPACE_INDEX_TEMPLATE: &str = r#"# OKF-RAG Workspace
 
-This folder is the user workspace for OKR Markdown truth files.
+This folder is the user workspace for OKF Markdown truth files.
 
-- `okrs/` stores source OKR Markdown files.
-- `.okr-rag/` at the workspace root stores derived cache, indexes, reports, and model state.
-- The Rust source project is `okr-rag` when this code is published as its own repository.
+- `okfs/` stores source OKF Markdown files.
+- `.okf-rag/` at the workspace root stores derived cache, indexes, reports, and model state.
+- The Rust source project is `okf-rag` when this code is published as its own repository.
 "#;
-const OKR_INDEX_TEMPLATE: &str = r#"# OKR Markdown Index
+const OKF_INDEX_TEMPLATE: &str = r#"# OKF Markdown Index
 
-Source OKR Markdown files in this folder are indexed by default when running:
+Source OKF Markdown files in this folder are indexed by default when running:
 
 ```powershell
-okr-rag ingest
+okf-rag ingest
 ```
 
-Generated or stale retrieval state belongs in `.okr-rag/`, not here.
+Generated or stale retrieval state belongs in `.okf-rag/`, not here.
 "#;
 
 type AppResult<T> = Result<T, Box<dyn Error>>;
@@ -112,7 +112,7 @@ struct StatusSummary {
     root: String,
     meta: String,
     workspace: String,
-    default_okr_source: String,
+    default_okf_source: String,
     index: String,
     active_slot: String,
     concepts: usize,
@@ -279,7 +279,7 @@ fn run() -> AppResult<()> {
                 .first()
                 .map(PathBuf::from)
                 .map(|path| resolve_under_root(&root, path))
-                .unwrap_or_else(|| default_okr_source_dir(&root));
+                .unwrap_or_else(|| default_okf_source_dir(&root));
             command_ingest(root, source, force)?;
         }
         "query" => {
@@ -317,7 +317,7 @@ fn run() -> AppResult<()> {
 
 fn print_help() {
     println!(
-        "okr-rag\n\ncommands:\n  okr-rag init [--root DIR]\n  okr-rag ingest [--root DIR] [--force] [SOURCE_DIR]\n  okr-rag query [--root DIR] [--top-k N] [--candidate-k N] <text>\n  okr-rag bench [--root DIR] [--top-k N] [--candidate-k N] EVAL_JSON\n  okr-rag status [--root DIR]\n  okr-rag mcp [--root DIR] [--no-watch]\n\nwithout SOURCE_DIR, ingest reads okr-rag-workspace/okrs; derived files live under .okr-rag/"
+        "okf-rag\n\ncommands:\n  okf-rag init [--root DIR]\n  okf-rag ingest [--root DIR] [--force] [SOURCE_DIR]\n  okf-rag query [--root DIR] [--top-k N] [--candidate-k N] <text>\n  okf-rag bench [--root DIR] [--top-k N] [--candidate-k N] EVAL_JSON\n  okf-rag status [--root DIR]\n  okf-rag mcp [--root DIR] [--no-watch]\n\nwithout SOURCE_DIR, ingest reads okf-rag-workspace/okfs; derived files live under .okf-rag/"
     );
 }
 
@@ -409,7 +409,7 @@ fn command_status(root: PathBuf) -> AppResult<()> {
     println!("root: {}", summary.root);
     println!("meta: {}", summary.meta);
     println!("workspace: {}", summary.workspace);
-    println!("default_okr_source: {}", summary.default_okr_source);
+    println!("default_okf_source: {}", summary.default_okf_source);
     println!("active_slot: {}", summary.active_slot);
     println!("index: {}", summary.index);
     println!("concepts: {}", summary.concepts);
@@ -434,10 +434,10 @@ fn command_bench(
 fn init_workspace(root: &Path) -> AppResult<PathBuf> {
     let meta = meta_dir(root);
     let workspace = workspace_dir(root);
-    let okr_source = default_okr_source_dir(root);
-    fs::create_dir_all(&okr_source)?;
+    let okf_source = default_okf_source_dir(root);
+    fs::create_dir_all(&okf_source)?;
     write_file_if_missing(&workspace.join("index.md"), WORKSPACE_INDEX_TEMPLATE)?;
-    write_file_if_missing(&okr_source.join("index.md"), OKR_INDEX_TEMPLATE)?;
+    write_file_if_missing(&okf_source.join("index.md"), OKF_INDEX_TEMPLATE)?;
     fs::create_dir_all(meta.join("index"))?;
     fs::create_dir_all(meta.join("cache"))?;
     fs::create_dir_all(meta.join("runs"))?;
@@ -546,12 +546,12 @@ fn query_workspace(
 ) -> AppResult<Vec<Hit>> {
     let manifest = read_manifest(root)?;
     if manifest.is_empty() {
-        return Err("manifest is empty; run okr-rag ingest first".into());
+        return Err("manifest is empty; run okf-rag ingest first".into());
     }
     let limit = candidate_k.max(top_k).min(manifest.len()).max(1);
     let index_path = active_index_dir(root)?;
     if !index_path.exists() {
-        return Err("index not found; run okr-rag ingest first".into());
+        return Err("index not found; run okf-rag ingest first".into());
     }
 
     let metadata = read_embedding_metadata(root)?.unwrap_or_else(default_embedding_metadata);
@@ -633,11 +633,11 @@ fn bench_workspace(
 
     let manifest = read_manifest(root)?;
     if manifest.is_empty() {
-        return Err("manifest is empty; run okr-rag ingest first".into());
+        return Err("manifest is empty; run okf-rag ingest first".into());
     }
     let index_path = active_index_dir(root)?;
     if !index_path.exists() {
-        return Err("index not found; run okr-rag ingest first".into());
+        return Err("index not found; run okf-rag ingest first".into());
     }
 
     let eval_top_k = top_k.max(10);
@@ -823,7 +823,7 @@ fn status_workspace(root: &Path) -> AppResult<StatusSummary> {
         root: path_str(root)?.to_string(),
         meta: path_str(&meta)?.to_string(),
         workspace: path_str(&workspace_dir(root))?.to_string(),
-        default_okr_source: path_str(&default_okr_source_dir(root))?.to_string(),
+        default_okf_source: path_str(&default_okf_source_dir(root))?.to_string(),
         index: path_str(&active_index)?.to_string(),
         active_slot,
         concepts: manifest.len(),
@@ -886,16 +886,16 @@ fn command_mcp(root: PathBuf, watch: bool) -> AppResult<()> {
 }
 
 fn start_workspace_watcher(root: PathBuf) {
-    thread::spawn(move || watch_default_okr_source(root));
+    thread::spawn(move || watch_default_okf_source(root));
 }
 
-fn watch_default_okr_source(root: PathBuf) {
-    let source = default_okr_source_dir(&root);
+fn watch_default_okf_source(root: PathBuf) {
+    let source = default_okf_source_dir(&root);
     let mut snapshot = match build_source_snapshot(&root, &source) {
         Ok(snapshot) => snapshot,
         Err(err) => {
             eprintln!(
-                "okr-rag watcher: failed to build startup snapshot for {}: {err}",
+                "okf-rag watcher: failed to build startup snapshot for {}: {err}",
                 source.display()
             );
             BTreeMap::new()
@@ -921,7 +921,7 @@ fn watch_default_okr_source(root: PathBuf) {
         Err(err) => {
             last_refresh_status = "startup-scan-failed".to_string();
             last_error = Some(err.to_string());
-            eprintln!("okr-rag watcher: startup scan failed: {err}");
+            eprintln!("okf-rag watcher: startup scan failed: {err}");
         }
     }
     write_watcher_state_best_effort(
@@ -943,7 +943,7 @@ fn watch_default_okr_source(root: PathBuf) {
             Ok(snapshot) => snapshot,
             Err(err) => {
                 eprintln!(
-                    "okr-rag watcher: failed to scan {}: {err}",
+                    "okf-rag watcher: failed to scan {}: {err}",
                     source.display()
                 );
                 continue;
@@ -1000,12 +1000,12 @@ fn watch_default_okr_source(root: PathBuf) {
         match ingest_workspace(&root, &source, false) {
             Ok(summary) if summary.skipped => {
                 last_refresh_status = "skipped".to_string();
-                eprintln!("okr-rag watcher: no rebuild needed after pending changes");
+                eprintln!("okf-rag watcher: no rebuild needed after pending changes");
             }
             Ok(summary) => {
                 last_refresh_status = "ok".to_string();
                 eprintln!(
-                    "okr-rag watcher: indexed {} concepts into slot {}; changes: {}",
+                    "okf-rag watcher: indexed {} concepts into slot {}; changes: {}",
                     summary.concepts,
                     summary.active_slot,
                     change_summary(&changes_for_run)
@@ -1014,7 +1014,7 @@ fn watch_default_okr_source(root: PathBuf) {
             Err(err) => {
                 last_refresh_status = "failed".to_string();
                 last_error = Some(err.to_string());
-                eprintln!("okr-rag watcher: ingest failed: {err}");
+                eprintln!("okf-rag watcher: ingest failed: {err}");
             }
         }
 
@@ -1036,7 +1036,7 @@ fn watch_default_okr_source(root: PathBuf) {
             Err(err) => {
                 last_refresh_status = "post-refresh-scan-failed".to_string();
                 last_error = Some(err.to_string());
-                eprintln!("okr-rag watcher: post-refresh scan failed: {err}");
+                eprintln!("okf-rag watcher: post-refresh scan failed: {err}");
             }
         }
 
@@ -1068,7 +1068,7 @@ fn handle_rpc_request(server_root: &Path, request: RpcRequest) -> Option<Value> 
                 "tools": {}
             },
             "serverInfo": {
-                "name": "okr-rag",
+                "name": "okf-rag",
                 "version": env!("CARGO_PKG_VERSION")
             }
         })),
@@ -1096,16 +1096,16 @@ fn handle_tool_call(server_root: &Path, params: Value) -> AppResult<Value> {
         .unwrap_or_else(|| json!({}));
 
     match name {
-        "okr_rag_status" => {
+        "okf_rag_status" => {
             let root = root_from_arguments(server_root, &arguments);
             let summary = status_workspace(&root)?;
             Ok(tool_result(json!({ "status": summary })))
         }
-        "okr_rag_ingest" => {
+        "okf_rag_ingest" => {
             let root = root_from_arguments(server_root, &arguments);
             let source = path_argument(&arguments, "source")
                 .map(|path| resolve_under_root(&root, path))
-                .unwrap_or_else(|| default_okr_source_dir(&root));
+                .unwrap_or_else(|| default_okf_source_dir(&root));
             let force = arguments
                 .get("force")
                 .and_then(Value::as_bool)
@@ -1113,11 +1113,11 @@ fn handle_tool_call(server_root: &Path, params: Value) -> AppResult<Value> {
             let summary = ingest_workspace(&root, &source, force)?;
             Ok(tool_result(json!({ "ingest": summary })))
         }
-        "okr_rag_query" => {
+        "okf_rag_query" => {
             let root = root_from_arguments(server_root, &arguments);
             let text = string_argument(&arguments, "query")
                 .or_else(|| string_argument(&arguments, "text"))
-                .ok_or("okr_rag_query requires query or text")?;
+                .ok_or("okf_rag_query requires query or text")?;
             let top_k = usize_argument(&arguments, "top_k").unwrap_or(DEFAULT_TOP_K);
             let candidate_k =
                 usize_argument(&arguments, "candidate_k").unwrap_or(DEFAULT_CANDIDATE_K);
@@ -1137,8 +1137,8 @@ fn mcp_tools() -> Value {
     json!({
         "tools": [
             {
-                "name": "okr_rag_status",
-                "description": "Show local .okr-rag status for a workspace.",
+                "name": "okf_rag_status",
+                "description": "Show local .okf-rag status for a workspace.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -1147,20 +1147,20 @@ fn mcp_tools() -> Value {
                 }
             },
             {
-                "name": "okr_rag_ingest",
-                "description": "Index OKR markdown into the workspace-local .okr-rag cache.",
+                "name": "okf_rag_ingest",
+                "description": "Index OKF markdown into the workspace-local .okf-rag cache.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "root": { "type": "string", "description": "Workspace root. Defaults to the server root." },
-                        "source": { "type": "string", "description": "Markdown source directory. Relative paths resolve under root. Defaults to okr-rag-workspace/okrs." },
+                        "source": { "type": "string", "description": "Markdown source directory. Relative paths resolve under root. Defaults to okf-rag-workspace/okfs." },
                         "force": { "type": "boolean", "default": false, "description": "Force rebuilding the derived index even when source content is unchanged." }
                     }
                 }
             },
             {
-                "name": "okr_rag_query",
-                "description": "Run full_hybrid retrieval over the local OKR markdown index.",
+                "name": "okf_rag_query",
+                "description": "Run full_hybrid retrieval over the local OKF markdown index.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["query"],
@@ -1505,7 +1505,7 @@ fn extract_sentence_embeddings(
 }
 
 fn onnx_batch_size() -> usize {
-    env::var("OKR_RAG_ONNX_BATCH_SIZE")
+    env::var("OKF_RAG_ONNX_BATCH_SIZE")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
@@ -1513,7 +1513,7 @@ fn onnx_batch_size() -> usize {
 }
 
 fn onnx_thread_count() -> usize {
-    env::var("OKR_RAG_ONNX_THREADS")
+    env::var("OKF_RAG_ONNX_THREADS")
         .ok()
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
@@ -1656,7 +1656,7 @@ fn default_embedding_metadata() -> EmbeddingMetadata {
 }
 
 fn create_schema() -> zvec::Result<CollectionSchema> {
-    CollectionSchema::builder("okr_rag")
+    CollectionSchema::builder("okf_rag")
         .add_field(FieldSchema::new("concept_id", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("source_path", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("title", DataType::String, false, 0)?)
@@ -2181,7 +2181,7 @@ fn write_watcher_state_best_effort(
         last_error: runtime.last_error.map(ToString::to_string),
     };
     if let Err(err) = write_json_atomic(&meta_dir(root).join(WATCHER_STATE_FILE), &state) {
-        eprintln!("okr-rag watcher: failed to write watcher state: {err}");
+        eprintln!("okf-rag watcher: failed to write watcher state: {err}");
     }
 }
 
@@ -2384,8 +2384,8 @@ fn workspace_dir(root: &Path) -> PathBuf {
     root.join(WORKSPACE_DIR)
 }
 
-fn default_okr_source_dir(root: &Path) -> PathBuf {
-    workspace_dir(root).join(DEFAULT_OKR_DIR)
+fn default_okf_source_dir(root: &Path) -> PathBuf {
+    workspace_dir(root).join(DEFAULT_OKF_DIR)
 }
 
 fn index_dir(root: &Path) -> PathBuf {
@@ -2420,29 +2420,29 @@ mod tests {
     #[test]
     fn parses_knowledge_catalog_frontmatter() {
         let markdown = r#"---
-title: "Retention OKR"
+title: "Retention OKF"
 description: "Reduce churn"
-tags: [okr, retention]
+tags: [okf, retention]
 nocturne:
-  uri: okr://customer/retention
+  uri: okf://customer/retention
   disclosure: "When answering retention questions."
 ---
-# Retention OKR
+# Retention OKF
 
 Reduce logo churn through faster support.
 "#;
 
         let parsed = parse_markdown(markdown);
 
-        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Retention OKR");
+        assert_eq!(parsed.frontmatter.get("title").unwrap(), "Retention OKF");
         assert_eq!(
             parsed.frontmatter.get("description").unwrap(),
             "Reduce churn"
         );
-        assert_eq!(parsed.tags, vec!["okr", "retention"]);
+        assert_eq!(parsed.tags, vec!["okf", "retention"]);
         assert_eq!(
             parsed.nocturne.get("uri").unwrap(),
-            "okr://customer/retention"
+            "okf://customer/retention"
         );
         assert_eq!(
             parsed.nocturne.get("disclosure").unwrap(),
@@ -2464,7 +2464,7 @@ Reduce logo churn through faster support.
 
     #[test]
     fn hashed_embedding_has_expected_shape() {
-        let vector = embed_hash_text("customer retention churn okr");
+        let vector = embed_hash_text("customer retention churn okf");
         let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
 
         assert_eq!(vector.len(), EMBEDDING_DIM);

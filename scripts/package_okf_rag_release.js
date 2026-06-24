@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 
 const REQUIRED_RUNTIME_FILES = [
-  "okr-rag.exe",
+  "okf-rag.exe",
   "onnxruntime.dll",
   "onnxruntime_providers_shared.dll",
   "zvec_c_api.dll",
@@ -13,17 +13,17 @@ const REQUIRED_RUNTIME_FILES = [
 const ROOT_FILES = [
   "README.md",
   "README-CN.md",
-  "README-OKR-RAG.md",
+  "README-OKF-RAG.md",
   "setup-for-agent.md",
-  "OKR-RAG-BENCHMARK.md",
+  "OKF-RAG-BENCHMARK.md",
 ];
 
 const SCRIPT_FILES = [
-  "package_okr_rag_release.js",
-  "setup_okr_rag_workspace.js",
+  "package_okf_rag_release.js",
+  "setup_okf_rag_workspace.js",
 ];
 
-const COPY_DIRS = ["okr-rag", "okr-rag-workspace"];
+const COPY_DIRS = ["okf-rag", "okf-rag-workspace"];
 
 function parseArgs(argv) {
   const args = {
@@ -74,10 +74,10 @@ function timestampVersion() {
 }
 
 function printHelp() {
-  console.log(`Usage: node scripts/package_okr_rag_release.js [--root DIR] [--version VERSION] [--no-zip]
+  console.log(`Usage: node scripts/package_okf_rag_release.js [--root DIR] [--version VERSION] [--no-zip]
 
-Creates dist/okr-rag-windows-x64-VERSION with the prebuilt Windows runtime,
-OKR workspace, docs, and local model files when present.`);
+Creates dist/okf-rag-windows-x64-VERSION with the prebuilt Windows runtime,
+OKF workspace, docs, and local model files when present.`);
 }
 
 function ensureFileExists(filePath) {
@@ -263,7 +263,7 @@ function main() {
   const rootPath = path.resolve(args.root);
   const releasePath = path.join(rootPath, "target", "release");
   const distPath = path.join(rootPath, "dist");
-  const packageName = `okr-rag-windows-x64-${args.version}`;
+  const packageName = `okf-rag-windows-x64-${args.version}`;
   const packagePath = path.join(distPath, packageName);
   const runtimePath = path.join(packagePath, "target", "release");
 
@@ -290,8 +290,8 @@ function main() {
     copyDirIfExists(path.join(rootPath, dirName), path.join(packagePath, dirName));
   }
 
-  const metaSource = path.join(rootPath, ".okr-rag");
-  const metaDest = path.join(packagePath, ".okr-rag");
+  const metaSource = path.join(rootPath, ".okf-rag");
+  const metaDest = path.join(packagePath, ".okf-rag");
   fs.mkdirSync(metaDest, { recursive: true });
   copyFileIfExists(path.join(metaSource, "README.md"), metaDest);
   copyFileIfExists(path.join(metaSource, ".gitkeep"), metaDest);
