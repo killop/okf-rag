@@ -75,7 +75,15 @@ After copying the demo or extracting a release package, rebuild the runtime inde
 okf-rag-workspace\bin\okf-rag.exe ingest --root . --force
 ```
 
-The ignore policy should keep source and OKF truth trackable, while ignoring generated runtime files:
+The ignore policy should keep source and OKF truth trackable, while ignoring generated runtime files.
+
+If rules are missing, update the repository's tracked ignore file, normally:
+
+```text
+<WORKDIR>\.gitignore
+```
+
+Do not put OKF-RAG ignore rules in `.git/info/exclude`; that is local-only state and other agents will not see it.
 
 ```gitignore
 /.okf-rag/*
@@ -85,6 +93,10 @@ The ignore policy should keep source and OKF truth trackable, while ignoring gen
 !/.codex/
 !/.codex/config.toml.example
 !/okf-rag-workspace/
+/okf-rag-workspace/bin/*.dll
+/okf-rag-workspace/bin/*.exe
+/okf-rag-workspace/bin/*.pdb
+!/okf-rag-workspace/bin/README.md
 ```
 
 ## Install Location
