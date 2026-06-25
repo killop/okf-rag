@@ -95,7 +95,7 @@ After copying the demo or extracting a release package, rebuild the runtime inde
 okf-rag-workspace\bin\okf-rag.exe ingest --root $WORKDIR --force
 ```
 
-The ignore policy should keep source and OKF truth trackable, while ignoring generated runtime files.
+The ignore policy should keep source and OKF truth trackable, while ignoring derived runtime files.
 
 If rules are missing, update the repository's tracked ignore file in `WORKDIR`, normally:
 
@@ -106,18 +106,11 @@ If rules are missing, update the repository's tracked ignore file in `WORKDIR`, 
 Do not put OKF-RAG ignore rules in `.git/info/exclude`; that is local-only state and other agents will not see it.
 
 ```gitignore
-/.okf-rag/*
-!/.okf-rag/README.md
-!/.okf-rag/.gitkeep
-/.codex/*
-!/.codex/
-!/.codex/config.toml.example
-!/okf-rag-workspace/
-/okf-rag-workspace/bin/*.dll
-/okf-rag-workspace/bin/*.exe
-/okf-rag-workspace/bin/*.pdb
-!/okf-rag-workspace/bin/README.md
+# OKF-RAG local memory
+/.okf-rag/
 ```
+
+Do not add ignore rules for `okf-rag-workspace/`. Its OKF Markdown, runtime binary, DLLs, and README files should remain visible to the project.
 
 ## Install Location
 
@@ -153,16 +146,7 @@ C:\Users\<USER>\.codex\config.toml
 
 Project-local install keeps `okf-rag` scoped to this workspace and prevents it from appearing in unrelated Codex sessions.
 
-Recommended project-local TOML uses the actual current workspace path. Replace `<WORKDIR>` with the project root where Codex is running:
-
-```toml
-[mcp_servers.okf-rag]
-type = "stdio"
-command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "<WORKDIR>"]
-```
-
-Relative paths are acceptable only when the MCP host resolves them from `WORKDIR`:
+Recommended project-local TOML uses paths relative to the current workspace. Because this file lives at `<WORKDIR>\.codex\config.toml`, keep the MCP command and root relative:
 
 ```toml
 [mcp_servers.okf-rag]
@@ -171,7 +155,20 @@ command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
 args = ["mcp", "--root", "."]
 ```
 
-After changing this file, restart the Codex session from `WORKDIR` so the MCP server list is reloaded.
+If an agent writes absolute paths here, replace them with the relative form above. Restart Codex from `WORKDIR` so the MCP server list is reloaded.
+
+Equivalent generic stdio MCP config:
+
+```json
+{
+  "mcpServers": {
+    "okf-rag": {
+      "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "."]
+    }
+  }
+}
+```
 
 ## Start MCP
 
@@ -181,14 +178,16 @@ Use the release binary when available:
 okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
-Generic stdio MCP config:
+For hosts that cannot resolve relative paths from the workspace root, fix the host working directory instead of copying an absolute path from another project.
+
+Generic stdio MCP config with explicit workspace-relative paths:
 
 ```json
 {
   "mcpServers": {
     "okf-rag": {
-      "command": "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "<WORKDIR>"]
+      "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "."]
     }
   }
 }

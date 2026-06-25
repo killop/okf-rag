@@ -139,13 +139,13 @@ C:\Users\<USER>\.codex\config.toml
 
 项目级安装只在当前 workspace 生效，不会污染其他 Codex 会话。
 
-推荐配置直接使用当前 workspace 的真实路径：
+推荐配置使用当前 workspace 的相对路径：
 
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "<WORKDIR>"]
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "."]
 ```
 
 通用 MCP 配置：
@@ -154,8 +154,8 @@ args = ["mcp", "--root", "<WORKDIR>"]
 {
   "mcpServers": {
     "okf-rag": {
-      "command": "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "<WORKDIR>"]
+      "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "."]
     }
   }
 }
@@ -234,11 +234,7 @@ node scripts/setup_okf_rag_workspace.js --target $SMOKE --runtime-source target\
 运行期生成文件不进源码管理，但 demo OKF truth 要保留：
 
 ```gitignore
-/.okf-rag/*
-!/.okf-rag/README.md
-!/.okf-rag/.gitkeep
-/.codex/*
-!/.codex/
-!/.codex/config.toml.example
-!/okf-rag-workspace/
+/.okf-rag/
 ```
+
+不要忽略 `okf-rag-workspace/`。

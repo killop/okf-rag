@@ -135,13 +135,13 @@ Install the MCP config in the current workspace's project-local Codex config:
 
 Do not install this project's MCP entry into `%USERPROFILE%\.codex\config.toml` unless you explicitly want it available in every Codex workspace.
 
-Recommended config uses the actual current workspace path:
+Recommended config uses paths relative to the current workspace:
 
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "<WORKDIR>"]
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "."]
 ```
 
 Generic MCP config:
@@ -150,8 +150,8 @@ Generic MCP config:
 {
   "mcpServers": {
     "okf-rag": {
-      "command": "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "<WORKDIR>"]
+      "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
+      "args": ["mcp", "--root", "."]
     }
   }
 }
@@ -230,11 +230,7 @@ node scripts/setup_okf_rag_workspace.js --target $SMOKE --runtime-source target\
 Generated runtime files stay out of source control, while the demo OKF truth stays visible:
 
 ```gitignore
-/.okf-rag/*
-!/.okf-rag/README.md
-!/.okf-rag/.gitkeep
-/.codex/*
-!/.codex/
-!/.codex/config.toml.example
-!/okf-rag-workspace/
+/.okf-rag/
 ```
+
+Do not ignore `okf-rag-workspace/`.

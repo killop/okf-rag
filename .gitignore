@@ -11,10 +11,7 @@
 !/.codex/config.toml.example
 
 # OKF-RAG runtime state is derived and can be rebuilt.
-# Keep the directory demo/readme trackable, ignore generated contents.
-/.okf-rag/*
-!/.okf-rag/README.md
-!/.okf-rag/.gitkeep
+/.okf-rag/
 
 # Generated benchmark/vector-store artifacts.
 /data/bench-runs/
@@ -32,11 +29,7 @@
 /data/ork-rag-smoke/
 
 # OKF-RAG truth/demo workspace is intentional project content.
-!/okf-rag-workspace/
-/okf-rag-workspace/bin/*.dll
-/okf-rag-workspace/bin/*.exe
-/okf-rag-workspace/bin/*.pdb
-!/okf-rag-workspace/bin/README.md
+# Do not ignore okf-rag-workspace/.
 
 *.pyc
 __pycache__/

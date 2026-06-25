@@ -128,13 +128,13 @@ For Codex, install this MCP entry in the project-local config:
 
 Do not use the user-level config (`C:\Users\<USER>\.codex\config.toml`) unless the user explicitly asks for a global install.
 
-Recommended config uses the actual current workspace path:
+Recommended config uses paths relative to the current workspace:
 
 ```toml
 [mcp_servers.okf-rag]
 type = "stdio"
-command = "<WORKDIR>\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "<WORKDIR>"]
+command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
+args = ["mcp", "--root", "."]
 ```
 
 Available tools:
@@ -227,11 +227,7 @@ The GitHub remote is `killop/okf-rag`.
 Use this policy so demo OKF truth is visible while generated runtime state stays disposable:
 
 ```gitignore
-/.okf-rag/*
-!/.okf-rag/README.md
-!/.okf-rag/.gitkeep
-/.codex/*
-!/.codex/
-!/.codex/config.toml.example
-!/okf-rag-workspace/
+/.okf-rag/
 ```
+
+Do not ignore `okf-rag-workspace/`.
