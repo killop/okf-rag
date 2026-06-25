@@ -13,7 +13,6 @@ const REQUIRED_RUNTIME_FILES = [
 const ROOT_FILES = [
   "README.md",
   "README-CN.md",
-  "README-OKF-RAG.md",
   "setup-for-agent.md",
   "OKF-RAG-BENCHMARK.md",
 ];
