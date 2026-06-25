@@ -70,7 +70,7 @@ $WORKDIR = (Get-Location).Path
 node scripts/setup_okf_rag_workspace.js --target $WORKDIR
 ```
 
-The setup script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo. Do not point `--target` at the source repo when installing for another project. This script creates missing runtime/workspace directories, a demo OKF, and placeholder Markdown files only. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
+The setup script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo. Do not point `--target` at the source repo when installing for another project. This script creates missing runtime/workspace directories, copies the bundled MiniLM model when present, removes stale non-MiniLM derived index state, installs the OKF skill into `.agents/skills/`, writes the tracked `.gitignore` rules, and creates one demo OKF file. It does not create or edit `.codex/config.toml`; copy the TOML snippet from [setup-for-agent.md](setup-for-agent.md).
 
 ## CLI
 
@@ -141,7 +141,7 @@ Recommended config uses paths relative to the current workspace:
 [mcp_servers.okf-rag]
 type = "stdio"
 command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "."]
+args = ["mcp", "--root", ".", "--no-watch"]
 ```
 
 Generic MCP config:
@@ -151,7 +151,7 @@ Generic MCP config:
   "mcpServers": {
     "okf-rag": {
       "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "."]
+      "args": ["mcp", "--root", ".", "--no-watch"]
     }
   }
 }
@@ -167,11 +167,11 @@ See [setup-for-agent.md](setup-for-agent.md) for agent-oriented MCP instructions
 
 ## Hot Sync
 
-`okf-rag mcp` starts a background watcher by default. It watches `okf-rag-workspace/okfs`, debounces changes, rebuilds the inactive A/B slot, and switches active slot only after a successful rebuild.
+`okf-rag mcp` starts a background watcher by default. Codex stdio MCP config should use `--no-watch` for fast `tools/list` startup; run watcher mode only when you intentionally want a long-running process outside Codex startup.
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe mcp --root .
 okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 Runtime slot state:
@@ -201,7 +201,9 @@ Model files are stored under:
 .okf-rag/models/all-MiniLM-L6-v2/
 ```
 
-`ingest`, `query`, and `mcp` do not call a remote embedding API when the local ONNX model and tokenizer are present. The fallback provider is deterministic local `hash-v1`.
+`setup_okf_rag_workspace.js` copies this model directory from the okf-rag source or release package into the target workspace when the source includes it.
+
+`ingest`, `query`, and `mcp` do not call a remote embedding API. Local ONNX MiniLM is required; there is no hash embedding fallback. If `onnx/model.onnx` or `tokenizer.json` is missing under the model directory, indexing and querying fail with a setup error.
 
 ## Performance Knobs
 
@@ -231,6 +233,8 @@ Generated runtime files stay out of source control, while the demo OKF truth sta
 
 ```gitignore
 /.okf-rag/
+!/okf-rag-workspace/
+!/okf-rag-workspace/**
 ```
 
 Do not ignore `okf-rag-workspace/`.

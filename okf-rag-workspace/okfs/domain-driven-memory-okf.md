@@ -1,7 +1,8 @@
 ---
-type: OKF
+type: Reference
 title: Generic Domain-Driven Memory System
 description: OKF and test contract for a reusable domain-driven memory system over arbitrary source repositories and knowledge corpora.
+resource: okf://memory/domain-driven-system
 tags: [domain-memory, okf, zvec, ddd, retrieval]
 timestamp: 2026-06-22T17:36:00+08:00
 uri: okf://memory/domain-driven-system
@@ -15,7 +16,7 @@ This document defines the reusable core. Project-specific repositories are input
 
 The core combines:
 
-- OKF-style Markdown concepts with YAML frontmatter, progressive `index.md` navigation, and graph links.
+- OKF-style Markdown concepts with YAML frontmatter and graph links; `index.md` is not generated or used as concept truth.
 - Domain modeling discipline: ubiquitous language, bounded contexts, explicit ambiguity handling, and ADRs only for hard-to-reverse trade-offs.
 - Zvec as a local retrieval substrate for vector search, full-text search, scalar filters, and hybrid retrieval.
 - Pluggable source adapters for code, docs, tickets, chat logs, design notes, and existing Markdown knowledge bases.
@@ -26,7 +27,7 @@ Create a portable knowledge bundle that humans, agents, and search infrastructur
 
 ### Key Results
 
-- KR1. Generate a root `index.md` and per-context indexes from configured source adapters.
+- KR1. Generate one Markdown concept file per memory unit from configured source adapters without creating `index.md` scaffold files.
 - KR2. Represent every memory unit as one Markdown concept with frontmatter fields: `type`, `title`, `description`, `tags`, `resource`, `source_path`, `bounded_context`, `concept_type`, `evidence_paths`, `timestamp`, and `content_hash`.
 - KR3. Preserve existing Markdown knowledge sources as first-class evidence instead of replacing them.
 - KR4. Generate links between concepts when source evidence shows relationships such as `depends-on`, `refines`, `implements`, `publishes-event`, `consumes-event`, or `uses-term`.
@@ -72,7 +73,7 @@ Every generated concept must carry evidence and be reproducible.
 ## Memory Terms
 
 **Knowledge Bundle**:
-A directory of Markdown concepts plus indexes that can be read by humans, agents, and retrieval infrastructure.
+A directory of Markdown concepts that can be read by humans, agents, and retrieval infrastructure.
 _Avoid_: opaque database dump
 
 **Concept**:
@@ -237,6 +238,6 @@ Expected output:
 1. Define a source profile format for include/exclude paths and concept mappings.
 2. Build a read-only scanner interface that emits generic concept candidates.
 3. Convert candidates to OKF Markdown concepts with evidence paths.
-4. Generate indexes and link graphs.
+4. Generate links and graph metadata without writing `index.md` navigation files.
 5. Build a Zvec collection from the Markdown bundle.
 6. Add latency and recall benchmark commands.

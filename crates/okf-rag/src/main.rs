@@ -39,7 +39,6 @@ const EMBEDDING_FILE: &str = "embedding.json";
 const INGEST_STATE_FILE: &str = "ingest-state.json";
 const WATCHER_STATE_FILE: &str = "watcher-state.json";
 const INGEST_LOCK_FILE: &str = "ingest.lock";
-const HASH_PROVIDER: &str = "hash-v1";
 const MINILM_PROVIDER: &str = "minilm-l6-v2-onnx";
 const MINILM_MODEL_DIR: &str = "models/all-MiniLM-L6-v2";
 const MINILM_MAX_LENGTH: usize = 256;
@@ -49,25 +48,6 @@ const WATCH_POLL_INTERVAL: Duration = Duration::from_secs(1);
 const WATCH_DEBOUNCE: Duration = Duration::from_secs(2);
 const INGEST_LOCK_STALE_AFTER: Duration = Duration::from_secs(300);
 const INGEST_LOCK_WAIT_TIMEOUT: Duration = Duration::from_secs(120);
-const WORKSPACE_INDEX_TEMPLATE: &str = r#"# OKF-RAG Workspace
-
-This folder is the user workspace for OKF Markdown truth files.
-
-- `okfs/` stores source OKF Markdown files.
-- `.okf-rag/` at the workspace root stores derived cache, indexes, reports, and model state.
-- The Rust source project is `okf-rag` when this code is published as its own repository.
-"#;
-const OKF_INDEX_TEMPLATE: &str = r#"# OKF Markdown Index
-
-Source OKF Markdown files in this folder are indexed by default when running:
-
-```powershell
-okf-rag ingest
-```
-
-Generated or stale retrieval state belongs in `.okf-rag/`, not here.
-"#;
-
 type AppResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Clone, Debug)]
@@ -77,6 +57,7 @@ struct Concept {
     title: String,
     description: String,
     tags: Vec<String>,
+    resource: String,
     uri: String,
     disclosure: String,
     body: String,
@@ -88,6 +69,7 @@ struct Hit {
     source_path: String,
     title: String,
     description: String,
+    resource: String,
     uri: String,
     disclosure: String,
     vector_score: f32,
@@ -433,11 +415,8 @@ fn command_bench(
 
 fn init_workspace(root: &Path) -> AppResult<PathBuf> {
     let meta = meta_dir(root);
-    let workspace = workspace_dir(root);
     let okf_source = default_okf_source_dir(root);
     fs::create_dir_all(&okf_source)?;
-    write_file_if_missing(&workspace.join("index.md"), WORKSPACE_INDEX_TEMPLATE)?;
-    write_file_if_missing(&okf_source.join("index.md"), OKF_INDEX_TEMPLATE)?;
     fs::create_dir_all(meta.join("index"))?;
     fs::create_dir_all(meta.join("cache"))?;
     fs::create_dir_all(meta.join("runs"))?;
@@ -504,6 +483,7 @@ fn ingest_workspace(root: &Path, source: &Path, force: bool) -> AppResult<Ingest
             doc.add_string("title", &concept.title)?;
             doc.add_string("description", &concept.description)?;
             doc.add_string("tags", &concept.tags.join(", "))?;
+            doc.add_string("resource", &concept.resource)?;
             doc.add_string("uri", &concept.uri)?;
             doc.add_string("disclosure", &concept.disclosure)?;
             doc.add_string("body", &concept.body)?;
@@ -554,7 +534,7 @@ fn query_workspace(
         return Err("index not found; run okf-rag ingest first".into());
     }
 
-    let metadata = read_embedding_metadata(root)?.unwrap_or_else(default_embedding_metadata);
+    let metadata = require_index_embedding_metadata(root)?;
     let mut embedder = TextEmbedder::from_metadata(root, &metadata)?;
     initialize(None)?;
     let result = (|| -> AppResult<Vec<Hit>> {
@@ -595,6 +575,7 @@ fn query_open_collection_with_vector(
             "title",
             "description",
             "tags",
+            "resource",
             "uri",
             "disclosure",
             "body",
@@ -642,7 +623,7 @@ fn bench_workspace(
 
     let eval_top_k = top_k.max(10);
     let limit = candidate_k.max(eval_top_k).min(manifest.len()).max(1);
-    let metadata = read_embedding_metadata(root)?.unwrap_or_else(default_embedding_metadata);
+    let metadata = require_index_embedding_metadata(root)?;
     let mut embedder = TextEmbedder::from_metadata(root, &metadata)?;
 
     initialize(None)?;
@@ -816,7 +797,13 @@ fn first_expected_rank(hits: &[Hit], expected: &[String]) -> Option<usize> {
 fn status_workspace(root: &Path) -> AppResult<StatusSummary> {
     let meta = meta_dir(root);
     let manifest = read_manifest(root).unwrap_or_default();
-    let embedding = read_embedding_metadata(root)?.unwrap_or_else(default_embedding_metadata);
+    let embedding = match read_embedding_metadata(root)? {
+        Some(metadata) => {
+            ensure_minilm_metadata(&metadata)?;
+            metadata
+        }
+        None => minilm_embedding_metadata(root)?,
+    };
     let active_slot = read_active_slot(root)?.unwrap_or_else(|| "legacy".to_string());
     let active_index = active_index_dir(root)?;
     Ok(StatusSummary {
@@ -845,6 +832,9 @@ fn print_hits(hits: &[Hit]) {
         println!("   path: {}", hit.source_path);
         if !hit.uri.is_empty() {
             println!("   uri: {}", hit.uri);
+        }
+        if !hit.resource.is_empty() {
+            println!("   resource: {}", hit.resource);
         }
         if !hit.disclosure.is_empty() {
             println!("   disclosure: {}", hit.disclosure);
@@ -1126,6 +1116,7 @@ fn handle_tool_call(server_root: &Path, params: Value) -> AppResult<Value> {
                 "query": text,
                 "top_k": top_k,
                 "candidate_k": candidate_k,
+                "guidance": "Use hits[].source_path as the entry point. If a hit is inside a bundle folder, read that folder's index.md directly for progressive disclosure. Do not run shell rg/grep/Select-String over okf-rag-workspace/okfs to repeat this lookup; issue another okf_rag_query if the search terms need refinement.",
                 "hits": hits
             })))
         }
@@ -1160,7 +1151,7 @@ fn mcp_tools() -> Value {
             },
             {
                 "name": "okf_rag_query",
-                "description": "Run full_hybrid retrieval over the local OKF markdown index.",
+                "description": "Run full_hybrid retrieval over the local OKF markdown index. Use returned hits[].source_path as the entry point; do not follow this with shell rg/grep/Select-String over okf-rag-workspace/okfs for the same lookup.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["query"],
@@ -1239,40 +1230,47 @@ fn usize_argument(arguments: &Value, key: &str) -> Option<usize> {
 }
 
 enum TextEmbedder {
-    Hash,
     MiniLm(Box<MiniLmOnnxEmbedder>),
 }
 
 impl TextEmbedder {
     fn from_metadata(root: &Path, metadata: &EmbeddingMetadata) -> AppResult<Self> {
-        match metadata.provider.as_str() {
-            MINILM_PROVIDER => Ok(Self::MiniLm(Box::new(MiniLmOnnxEmbedder::new(root)?))),
-            HASH_PROVIDER => Ok(Self::Hash),
-            other => Err(format!("unknown embedding provider in metadata: {other}").into()),
-        }
+        ensure_minilm_metadata(metadata)?;
+        Ok(Self::MiniLm(Box::new(MiniLmOnnxEmbedder::new(root)?)))
     }
 
     fn embed(&mut self, text: &str) -> AppResult<Vec<f32>> {
         match self {
-            Self::Hash => Ok(embed_hash_text(text)),
             Self::MiniLm(embedder) => embedder.embed(text),
         }
     }
 
     fn embed_many(&mut self, texts: &[String]) -> AppResult<Vec<Vec<f32>>> {
         match self {
-            Self::Hash => Ok(texts.iter().map(|text| embed_hash_text(text)).collect()),
             Self::MiniLm(embedder) => embedder.embed_many(texts),
         }
     }
 }
 
 fn detect_embedding_metadata(root: &Path) -> AppResult<EmbeddingMetadata> {
-    if minilm_model_path(root).exists() && minilm_tokenizer_path(root).exists() {
-        minilm_embedding_metadata(root)
-    } else {
-        Ok(default_embedding_metadata())
+    let model_path = minilm_model_path(root);
+    let tokenizer_path = minilm_tokenizer_path(root);
+    let mut missing = Vec::new();
+    if !model_path.exists() {
+        missing.push(model_path.display().to_string());
     }
+    if !tokenizer_path.exists() {
+        missing.push(tokenizer_path.display().to_string());
+    }
+    if !missing.is_empty() {
+        return Err(format!(
+            "local MiniLM embedding model is required; missing {}. Place sentence-transformers/all-MiniLM-L6-v2 ONNX files under {}",
+            missing.join(", "),
+            minilm_model_dir(root).display()
+        )
+        .into());
+    }
+    minilm_embedding_metadata(root)
 }
 
 fn minilm_embedding_metadata(root: &Path) -> AppResult<EmbeddingMetadata> {
@@ -1647,12 +1645,34 @@ fn bytes_to_hex(bytes: &[u8]) -> String {
     out
 }
 
-fn default_embedding_metadata() -> EmbeddingMetadata {
-    EmbeddingMetadata {
-        provider: HASH_PROVIDER.to_string(),
-        dim: EMBEDDING_DIM,
-        model: String::new(),
+fn require_index_embedding_metadata(root: &Path) -> AppResult<EmbeddingMetadata> {
+    let metadata = read_embedding_metadata(root)?.ok_or_else(|| {
+        format!(
+            "embedding metadata missing; run okf-rag ingest --root {} --force after installing the local MiniLM ONNX model under {}",
+            root.display(),
+            minilm_model_dir(root).display()
+        )
+    })?;
+    ensure_minilm_metadata(&metadata)?;
+    Ok(metadata)
+}
+
+fn ensure_minilm_metadata(metadata: &EmbeddingMetadata) -> AppResult<()> {
+    if metadata.provider != MINILM_PROVIDER {
+        return Err(format!(
+            "unsupported embedding provider in index metadata: {}. Delete stale .okf-rag indexes and rebuild with local {}.",
+            metadata.provider, MINILM_PROVIDER
+        )
+        .into());
     }
+    if metadata.dim != EMBEDDING_DIM {
+        return Err(format!(
+            "embedding dimension mismatch in metadata: expected {}, got {}",
+            EMBEDDING_DIM, metadata.dim
+        )
+        .into());
+    }
+    Ok(())
 }
 
 fn create_schema() -> zvec::Result<CollectionSchema> {
@@ -1662,6 +1682,7 @@ fn create_schema() -> zvec::Result<CollectionSchema> {
         .add_field(FieldSchema::new("title", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("description", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("tags", DataType::String, false, 0)?)
+        .add_field(FieldSchema::new("resource", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("uri", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("disclosure", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("body", DataType::String, false, 0)?)
@@ -1698,6 +1719,16 @@ fn load_concepts(root: &Path, source: &Path) -> AppResult<Vec<Concept>> {
             .cloned()
             .or_else(|| first_heading(&parsed.body))
             .unwrap_or_else(|| title_from_path(&file));
+        let resource = parsed
+            .frontmatter
+            .get("resource")
+            .cloned()
+            .unwrap_or_default();
+        let uri = parsed
+            .frontmatter
+            .get("uri")
+            .cloned()
+            .unwrap_or_else(|| resource.clone());
         concepts.push(Concept {
             concept_id,
             source_path: file,
@@ -1708,9 +1739,10 @@ fn load_concepts(root: &Path, source: &Path) -> AppResult<Vec<Concept>> {
                 .cloned()
                 .unwrap_or_default(),
             tags: parsed.tags,
-            uri: parsed.nocturne.get("uri").cloned().unwrap_or_default(),
+            resource,
+            uri,
             disclosure: parsed
-                .nocturne
+                .frontmatter
                 .get("disclosure")
                 .cloned()
                 .unwrap_or_default(),
@@ -1756,14 +1788,12 @@ fn should_skip_path(root: &Path, path: &Path) -> bool {
 
 struct ParsedMarkdown {
     frontmatter: HashMap<String, String>,
-    nocturne: HashMap<String, String>,
     tags: Vec<String>,
     body: String,
 }
 
 fn parse_markdown(text: &str) -> ParsedMarkdown {
     let mut frontmatter = HashMap::new();
-    let mut nocturne = HashMap::new();
     let mut tags = Vec::new();
     let mut lines = text.lines();
     let mut fm_lines = Vec::new();
@@ -1791,7 +1821,7 @@ fn parse_markdown(text: &str) -> ParsedMarkdown {
         if trimmed.is_empty() {
             continue;
         }
-        if trimmed == "tags:" || trimmed == "nocturne:" {
+        if trimmed == "tags:" {
             section = trimmed.trim_end_matches(':').to_string();
             continue;
         }
@@ -1799,19 +1829,10 @@ fn parse_markdown(text: &str) -> ParsedMarkdown {
             tags.push(unquote(trimmed.trim_start_matches("- ").trim()));
             continue;
         }
-        if section == "nocturne" && line.starts_with(' ') {
-            if let Some((key, value)) = split_yaml_pair(trimmed) {
-                nocturne.insert(key, value);
-            }
-            continue;
-        }
         section.clear();
         if let Some((key, value)) = split_yaml_pair(trimmed) {
             if key == "tags" {
                 tags.extend(parse_inline_tags(&value));
-            } else if key == "disclosure" || key == "uri" {
-                nocturne.insert(key.clone(), value.clone());
-                frontmatter.insert(key, value);
             } else {
                 frontmatter.insert(key, value);
             }
@@ -1820,7 +1841,6 @@ fn parse_markdown(text: &str) -> ParsedMarkdown {
 
     ParsedMarkdown {
         frontmatter,
-        nocturne,
         tags,
         body: body_lines.join("\n").trim().to_string(),
     }
@@ -1879,30 +1899,16 @@ fn stable_pk(text: &str) -> String {
 
 fn full_embedding_text(concept: &Concept) -> String {
     format!(
-        "body:\n{}\n\ncatalog:\ntitle: {}\ndescription: {}\ntags: {}\n\nrecall:\nuri: {}\ndisclosure: {}\nwhen_to_recall: {}",
+        "body:\n{}\n\ncatalog:\ntitle: {}\ndescription: {}\ntags: {}\nresource: {}\n\nrecall:\nuri: {}\ndisclosure: {}\nwhen_to_recall: {}",
         concept.body,
         concept.title,
         concept.description,
         concept.tags.join(", "),
+        concept.resource,
         concept.uri,
         concept.disclosure,
         concept.disclosure
     )
-}
-
-fn embed_hash_text(text: &str) -> Vec<f32> {
-    let mut vector = vec![0.0_f32; EMBEDDING_DIM];
-    for (position, token) in tokenize(text).into_iter().enumerate() {
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        token.hash(&mut hasher);
-        let hash = hasher.finish();
-        let index = (hash as usize) % EMBEDDING_DIM;
-        let sign = if (hash >> 63) == 0 { 1.0 } else { -1.0 };
-        let weight = 1.0 + (1.0 / ((position + 1) as f32).sqrt());
-        vector[index] += sign * weight;
-    }
-    normalize(&mut vector);
-    vector
 }
 
 fn tokenize(text: &str) -> Vec<String> {
@@ -1952,6 +1958,7 @@ fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
     let title = doc.get_string("title")?.unwrap_or_default();
     let description = doc.get_string("description")?.unwrap_or_default();
     let tags = doc.get_string("tags")?.unwrap_or_default();
+    let resource = doc.get_string("resource")?.unwrap_or_default();
     let uri = doc.get_string("uri")?.unwrap_or_default();
     let disclosure = doc.get_string("disclosure")?.unwrap_or_default();
     let body = doc.get_string("body")?.unwrap_or_default();
@@ -1961,6 +1968,7 @@ fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
         (&title, 2.0_f32),
         (&description, 1.5),
         (&tags, 1.4),
+        (&resource, 1.2),
         (&uri, 1.2),
         (&disclosure, 3.0),
         (&body, 1.0),
@@ -1971,6 +1979,7 @@ fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
         source_path,
         title,
         description,
+        resource,
         uri,
         disclosure,
         vector_score: doc.get_score(),
@@ -2356,6 +2365,7 @@ fn concepts_fingerprint(concepts: &[Concept], metadata: &EmbeddingMetadata) -> S
         for tag in &concept.tags {
             hash_text_part(&mut hasher, tag);
         }
+        hash_text_part(&mut hasher, &concept.resource);
         hash_text_part(&mut hasher, &concept.uri);
         hash_text_part(&mut hasher, &concept.disclosure);
         hash_text_part(&mut hasher, &concept.body);
@@ -2367,13 +2377,6 @@ fn hash_text_part(hasher: &mut Sha256, text: &str) {
     hasher.update(text.len().to_le_bytes());
     hasher.update(text.as_bytes());
     hasher.update([0xff]);
-}
-
-fn write_file_if_missing(path: &Path, content: &str) -> AppResult<()> {
-    if !path.exists() {
-        fs::write(path, content)?;
-    }
-    Ok(())
 }
 
 fn meta_dir(root: &Path) -> PathBuf {
@@ -2422,10 +2425,10 @@ mod tests {
         let markdown = r#"---
 title: "Retention OKF"
 description: "Reduce churn"
+resource: okf://customer/retention
 tags: [okf, retention]
-nocturne:
-  uri: okf://customer/retention
-  disclosure: "When answering retention questions."
+uri: okf://customer/retention
+disclosure: "When answering retention questions."
 ---
 # Retention OKF
 
@@ -2441,11 +2444,15 @@ Reduce logo churn through faster support.
         );
         assert_eq!(parsed.tags, vec!["okf", "retention"]);
         assert_eq!(
-            parsed.nocturne.get("uri").unwrap(),
+            parsed.frontmatter.get("resource").unwrap(),
             "okf://customer/retention"
         );
         assert_eq!(
-            parsed.nocturne.get("disclosure").unwrap(),
+            parsed.frontmatter.get("uri").unwrap(),
+            "okf://customer/retention"
+        );
+        assert_eq!(
+            parsed.frontmatter.get("disclosure").unwrap(),
             "When answering retention questions."
         );
         assert!(parsed.body.contains("Reduce logo churn"));
@@ -2460,14 +2467,5 @@ Reduce logo churn through faster support.
         let strong_score = lexical_score(query, &[(&strong, 3.0)]);
 
         assert!(strong_score > weak_score);
-    }
-
-    #[test]
-    fn hashed_embedding_has_expected_shape() {
-        let vector = embed_hash_text("customer retention churn okf");
-        let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
-
-        assert_eq!(vector.len(), EMBEDDING_DIM);
-        assert!((norm - 1.0).abs() < 1e-5);
     }
 }

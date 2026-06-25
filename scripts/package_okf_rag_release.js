@@ -22,7 +22,7 @@ const SCRIPT_FILES = [
   "setup_okf_rag_workspace.js",
 ];
 
-const COPY_DIRS = ["okf-rag-workspace"];
+const COPY_DIRS = ["okf-rag-workspace", "skills"];
 
 function parseArgs(argv) {
   const args = {
@@ -93,11 +93,23 @@ function copyFileIfExists(source, destinationDir) {
   fs.copyFileSync(source, path.join(destinationDir, path.basename(source)));
 }
 
-function copyDirIfExists(source, destination) {
+function shouldSkipPackagePath(relativePath) {
+  const normalized = relativePath.replace(/\\/g, "/");
+  return normalized === "index.md" || normalized === "okfs/index.md";
+}
+
+function copyDirIfExists(source, destination, options = {}) {
   if (!fs.existsSync(source)) {
     return;
   }
-  fs.cpSync(source, destination, { recursive: true, force: true });
+  fs.cpSync(source, destination, {
+    recursive: true,
+    force: true,
+    filter: (sourcePath) => {
+      const relativePath = path.relative(source, sourcePath);
+      return relativePath === "" || !options.skip?.(relativePath);
+    },
+  });
 }
 
 function writeFileIfMissing(filePath, content) {
@@ -288,7 +300,9 @@ function main() {
   }
 
   for (const dirName of COPY_DIRS) {
-    copyDirIfExists(path.join(rootPath, dirName), path.join(packagePath, dirName));
+    copyDirIfExists(path.join(rootPath, dirName), path.join(packagePath, dirName), {
+      skip: dirName === "okf-rag-workspace" ? shouldSkipPackagePath : undefined,
+    });
   }
 
   fs.mkdirSync(runtimePath, { recursive: true });

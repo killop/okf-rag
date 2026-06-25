@@ -1,7 +1,8 @@
 ---
-type: OKF
+type: Reference
 title: Local-First OKF-RAG Demo
 description: Demonstrates the portable OKF-RAG workspace layout, local indexing, and project-scoped MCP setup.
+resource: okf://demo/local-first-okf-rag
 tags: [okf, demo, local-first, mcp, zvec]
 timestamp: 2026-06-24T00:00:00+08:00
 uri: okf://demo/local-first-okf-rag

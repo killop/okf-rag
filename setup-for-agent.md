@@ -74,17 +74,20 @@ If the setup script lives in a separate cloned `okf-rag` source repo, still inst
 node <OKF_RAG_REPO>\scripts\setup_okf_rag_workspace.js --target $WORKDIR --runtime-source <OKF_RAG_REPO>\target\release
 ```
 
-The setup script creates basic directories, missing placeholder Markdown, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`.
+The setup script creates basic directories, creates one demo OKF file, copies the bundled MiniLM model when the installation source includes it, removes stale non-MiniLM derived index state, installs the OKF writing skill into `.agents/skills/`, updates the project `.gitignore`, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`.
 
 The script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo by default. This is intentional, so an agent cannot accidentally install into the source repo after reading its README.
 
 ```text
 .okf-rag/
 .okf-rag/models/
+.okf-rag/models/all-MiniLM-L6-v2/onnx/model.onnx
+.okf-rag/models/all-MiniLM-L6-v2/tokenizer.json
 okf-rag-workspace/
 okf-rag-workspace/bin/
 okf-rag-workspace/okfs/
 okf-rag-workspace/okfs/local-first-okf-rag-demo.md
+.agents/skills/okf-rag-okf-format/SKILL.md
 ```
 
 It must not create, edit, or validate any `.codex/config.toml`. Project-local Codex config is an explicit manual setup step documented below.
@@ -97,7 +100,7 @@ okf-rag-workspace\bin\okf-rag.exe ingest --root $WORKDIR --force
 
 The ignore policy should keep source and OKF truth trackable, while ignoring derived runtime files.
 
-If rules are missing, update the repository's tracked ignore file in `WORKDIR`, normally:
+The setup script writes this rule to the repository's tracked ignore file in `WORKDIR`, normally:
 
 ```text
 <WORKDIR>\.gitignore
@@ -108,6 +111,8 @@ Do not put OKF-RAG ignore rules in `.git/info/exclude`; that is local-only state
 ```gitignore
 # OKF-RAG local memory
 /.okf-rag/
+!/okf-rag-workspace/
+!/okf-rag-workspace/**
 ```
 
 Do not add ignore rules for `okf-rag-workspace/`. Its OKF Markdown, runtime binary, DLLs, and README files should remain visible to the project.
@@ -152,10 +157,10 @@ Recommended project-local TOML uses paths relative to the current workspace. Bec
 [mcp_servers.okf-rag]
 type = "stdio"
 command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "."]
+args = ["mcp", "--root", ".", "--no-watch"]
 ```
 
-If an agent writes absolute paths here, replace them with the relative form above. Restart Codex from `WORKDIR` so the MCP server list is reloaded.
+Codex stdio startup should use `--no-watch` so `tools/list` returns quickly and startup is not coupled to background file watching. If an agent writes absolute paths here, replace them with the relative form above. Restart Codex from `WORKDIR` so the MCP server list is reloaded.
 
 Equivalent generic stdio MCP config:
 
@@ -164,7 +169,7 @@ Equivalent generic stdio MCP config:
   "mcpServers": {
     "okf-rag": {
       "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "."]
+      "args": ["mcp", "--root", ".", "--no-watch"]
     }
   }
 }
@@ -172,10 +177,10 @@ Equivalent generic stdio MCP config:
 
 ## Start MCP
 
-Use the release binary when available:
+Use the release binary when available. For Codex stdio MCP, prefer `--no-watch`:
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
 ```
 
 For hosts that cannot resolve relative paths from the workspace root, fix the host working directory instead of copying an absolute path from another project.
@@ -187,16 +192,16 @@ Generic stdio MCP config with explicit workspace-relative paths:
   "mcpServers": {
     "okf-rag": {
       "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "."]
+      "args": ["mcp", "--root", ".", "--no-watch"]
     }
   }
 }
 ```
 
-The MCP server starts a background watcher by default. If the host needs manual indexing only:
+The MCP server starts a background watcher by default when `--no-watch` is omitted. Use watcher mode only for an intentionally long-running process outside Codex startup:
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 ## MCP Tools
@@ -210,6 +215,8 @@ Arguments:
 ```
 
 Use `okf_rag_query` to retrieve OKF memory.
+
+Once `okf_rag_query` has been used for a lookup, keep using MCP results for that lookup. Do not run shell text searches such as `rg`, `grep`, `Select-String`, or broad `Get-ChildItem | Select-String` over `okf-rag-workspace/okfs` to re-find the same OKF content. Use returned `hits[].source_path`, open the parent folder's `index.md` directly when the hit belongs to a bundle, or issue another `okf_rag_query` with improved natural-language terms. Shell is only appropriate for targeted reads/lists of known paths, file edits, or MCP troubleshooting.
 
 Arguments:
 
@@ -284,3 +291,5 @@ Runtime embedding is local-first:
 - Vector store: local zvec
 
 No remote embedding API is required for `ingest`, `query`, or `mcp` when the local ONNX model exists.
+There is no hash embedding fallback. Missing `onnx/model.onnx` or `tokenizer.json` is a setup error.
+The setup script should copy the model from the okf-rag source or release package into the target workspace when that source includes `.okf-rag/models/all-MiniLM-L6-v2/`.

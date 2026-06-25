@@ -68,7 +68,7 @@ $WORKDIR = (Get-Location).Path
 node scripts/setup_okf_rag_workspace.js --target $WORKDIR
 ```
 
-setup 脚本不允许省略 `--target`，并且默认拒绝安装到 `okf-rag` 源码 repo。给别的项目安装时，不要把 `--target` 指向源码 repo。这个脚本只创建缺失的运行/工作目录、demo OKF 和占位 Markdown，不创建也不修改 `.codex/config.toml`；直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
+setup 脚本不允许省略 `--target`，并且默认拒绝安装到 `okf-rag` 源码 repo。给别的项目安装时，不要把 `--target` 指向源码 repo。这个脚本会创建缺失的运行/工作目录，在安装源包含模型时复制 MiniLM 模型，清掉旧的非 MiniLM 派生索引状态，把 OKF skill 安装到 `.agents/skills/`，写入受管控的 `.gitignore` 规则，并生成一个 demo OKF 文件，但不会创建也不会修改 `.codex/config.toml`；直接复制 [setup-for-agent.md](setup-for-agent.md) 里的 TOML 片段。
 
 ## CLI
 
@@ -145,7 +145,7 @@ C:\Users\<USER>\.codex\config.toml
 [mcp_servers.okf-rag]
 type = "stdio"
 command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", "."]
+args = ["mcp", "--root", ".", "--no-watch"]
 ```
 
 通用 MCP 配置：
@@ -155,7 +155,7 @@ args = ["mcp", "--root", "."]
   "mcpServers": {
     "okf-rag": {
       "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", "."]
+      "args": ["mcp", "--root", ".", "--no-watch"]
     }
   }
 }
@@ -171,11 +171,11 @@ Agent 使用说明见 [setup-for-agent.md](setup-for-agent.md)。
 
 ## 热同步
 
-`okf-rag mcp` 默认启动后台 watcher。它监听 `okf-rag-workspace/okfs`，对文件变化做 debounce，重建 inactive A/B slot，成功后才切 active slot。
+`okf-rag mcp` 默认启动后台 watcher。Codex stdio MCP 配置应使用 `--no-watch`，让 `tools/list` 快速返回；只有在明确需要 Codex 启动流程之外的长驻 watcher 时才使用 watcher 模式。
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe mcp --root .
 okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 运行状态文件：
@@ -205,7 +205,9 @@ sentence-transformers/all-MiniLM-L6-v2
 .okf-rag/models/all-MiniLM-L6-v2/
 ```
 
-本地模型和 tokenizer 存在时，`ingest`、`query`、`mcp` 不调用远程 embedding API。fallback provider 是确定性的本地 `hash-v1`。
+`setup_okf_rag_workspace.js` 会在安装源包含该模型目录时，把它复制到目标 workspace。
+
+`ingest`、`query`、`mcp` 不调用远程 embedding API。本地 ONNX MiniLM 是必需项，没有 hash embedding fallback。如果模型目录下缺少 `onnx/model.onnx` 或 `tokenizer.json`，建库和查询会直接报 setup 错误。
 
 ## 性能参数
 
@@ -235,6 +237,8 @@ node scripts/setup_okf_rag_workspace.js --target $SMOKE --runtime-source target\
 
 ```gitignore
 /.okf-rag/
+!/okf-rag-workspace/
+!/okf-rag-workspace/**
 ```
 
 不要忽略 `okf-rag-workspace/`。

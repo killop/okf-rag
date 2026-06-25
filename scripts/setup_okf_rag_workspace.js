@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Initializes the OKF-RAG scaffold in the current target workspace.
 const fs = require("fs");
+const crypto = require("crypto");
 const path = require("path");
 
 const RUNTIME_FILES = [
@@ -9,6 +10,12 @@ const RUNTIME_FILES = [
   "onnxruntime_providers_shared.dll",
   "zvec_c_api.dll",
 ];
+
+const SKILL_NAME = "okf-rag-okf-format";
+const GITIGNORE_HEADER = "# OKF-RAG managed ignore";
+const GITIGNORE_FOOTER = "# end OKF-RAG managed ignore";
+const MINILM_PROVIDER = "minilm-l6-v2-onnx";
+const MINILM_MODEL_DIR = "all-MiniLM-L6-v2";
 
 function parseArgs(argv) {
   const args = {
@@ -55,7 +62,10 @@ function printHelp() {
   console.log(`Usage: node scripts/setup_okf_rag_workspace.js --target DIR [--runtime-source DIR]
 
 Creates the local OKF-RAG workspace scaffold and copies the prebuilt runtime
-into okf-rag-workspace/bin when release artifacts are available.
+into okf-rag-workspace/bin when release artifacts are available. It also
+copies the bundled local MiniLM model when present, installs the OKF writing
+skill into .agents/skills, removes stale non-MiniLM index state, and writes
+the tracked .gitignore rules for .okf-rag and okf-rag-workspace.
 
 --target must be the project workspace where the current agent is working.
 Do not point it at the okf-rag source repo. The script refuses that by default.
@@ -83,6 +93,11 @@ function writeFileIfMissing(filePath, content) {
 
 function hasRuntimeFiles(dirPath) {
   return RUNTIME_FILES.every((fileName) => fs.existsSync(path.join(dirPath, fileName)));
+}
+
+function hasMiniLmModel(dirPath) {
+  return fs.existsSync(path.join(dirPath, "onnx", "model.onnx")) &&
+    fs.existsSync(path.join(dirPath, "tokenizer.json"));
 }
 
 function samePath(left, right) {
@@ -115,12 +130,7 @@ function copyFileIfChanged(source, destination) {
   }
 
   if (fs.existsSync(destination)) {
-    const sourceStat = fs.statSync(source);
-    const destinationStat = fs.statSync(destination);
-    if (
-      sourceStat.size === destinationStat.size &&
-      sourceStat.mtimeMs <= destinationStat.mtimeMs
-    ) {
+    if (fileDigest(source) === fileDigest(destination)) {
       console.log(`keep: ${destination}`);
       return;
     }
@@ -129,6 +139,10 @@ function copyFileIfChanged(source, destination) {
   fs.mkdirSync(path.dirname(destination), { recursive: true });
   fs.copyFileSync(source, destination);
   console.log(`runtime: ${destination}`);
+}
+
+function fileDigest(filePath) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
 function copyRuntimeArtifacts(targetPath, runtimeSource) {
@@ -143,6 +157,117 @@ function copyRuntimeArtifacts(targetPath, runtimeSource) {
   for (const fileName of RUNTIME_FILES) {
     copyFileIfChanged(path.join(sourceDir, fileName), path.join(destinationDir, fileName));
   }
+}
+
+function copyMiniLmModelIfPresent(sourceRoot, targetPath) {
+  const sourceModel = path.join(sourceRoot, ".okf-rag", "models", MINILM_MODEL_DIR);
+  const destinationModel = path.join(targetPath, ".okf-rag", "models", MINILM_MODEL_DIR);
+
+  if (samePath(sourceModel, destinationModel)) {
+    console.log(`model: keep ${destinationModel}`);
+    return;
+  }
+
+  if (!hasMiniLmModel(sourceModel)) {
+    console.log(`model: not found at ${sourceModel}`);
+    console.log(`model: place sentence-transformers/all-MiniLM-L6-v2 under ${destinationModel}`);
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(destinationModel), { recursive: true });
+  fs.cpSync(sourceModel, destinationModel, { recursive: true, force: true });
+  console.log(`model: ${destinationModel}`);
+}
+
+function removePathIfExists(targetPath) {
+  if (!fs.existsSync(targetPath)) {
+    return;
+  }
+  fs.rmSync(targetPath, { recursive: true, force: true });
+  console.log(`stale: removed ${targetPath}`);
+}
+
+function removeGeneratedIndexFiles(targetPath) {
+  const generatedIndexes = [
+    path.join(targetPath, "okf-rag-workspace", "index.md"),
+    path.join(targetPath, "okf-rag-workspace", "okfs", "index.md"),
+  ];
+
+  for (const indexPath of generatedIndexes) {
+    removePathIfExists(indexPath);
+  }
+}
+
+function cleanStaleEmbeddingState(targetPath) {
+  const metaPath = path.join(targetPath, ".okf-rag");
+  const embeddingPath = path.join(metaPath, "embedding.json");
+  if (!fs.existsSync(embeddingPath)) {
+    return;
+  }
+
+  let provider = "";
+  try {
+    provider = JSON.parse(fs.readFileSync(embeddingPath, "utf8")).provider || "";
+  } catch {
+    provider = "unreadable";
+  }
+
+  if (provider === MINILM_PROVIDER) {
+    return;
+  }
+
+  removePathIfExists(path.join(metaPath, "embedding.json"));
+  removePathIfExists(path.join(metaPath, "ingest-state.json"));
+  removePathIfExists(path.join(metaPath, "active-slot.json"));
+  removePathIfExists(path.join(metaPath, "manifest.tsv"));
+  removePathIfExists(path.join(metaPath, "watcher-state.json"));
+  removePathIfExists(path.join(metaPath, "ingest.lock"));
+  removePathIfExists(path.join(metaPath, "index"));
+  removePathIfExists(path.join(metaPath, "cache", "embeddings"));
+}
+
+function copySkillIfPresent(sourceRoot, targetPath) {
+  const sourceSkill = path.join(sourceRoot, "skills", SKILL_NAME);
+  if (!fs.existsSync(sourceSkill)) {
+    console.log(`skill: missing ${sourceSkill}`);
+    return;
+  }
+
+  const destinationSkill = path.join(targetPath, ".agents", "skills", SKILL_NAME);
+  fs.mkdirSync(path.dirname(destinationSkill), { recursive: true });
+  fs.cpSync(sourceSkill, destinationSkill, { recursive: true, force: true });
+  console.log(`skill: ${destinationSkill}`);
+}
+
+function ensureGitignore(targetPath) {
+  const gitignorePath = path.join(targetPath, ".gitignore");
+  const block = [
+    GITIGNORE_HEADER,
+    "/.okf-rag/",
+    "!/okf-rag-workspace/",
+    "!/okf-rag-workspace/**",
+    GITIGNORE_FOOTER,
+  ].join("\n");
+
+  const existing = fs.existsSync(gitignorePath) ? fs.readFileSync(gitignorePath, "utf8") : "";
+  const start = existing.indexOf(GITIGNORE_HEADER);
+  const end = start >= 0 ? existing.indexOf(GITIGNORE_FOOTER, start) : -1;
+
+  if (start >= 0 && end >= 0) {
+    const afterEnd = end + GITIGNORE_FOOTER.length;
+    const updated = `${existing.slice(0, start)}${block}${existing.slice(afterEnd)}`;
+    if (updated === existing) {
+      console.log(`gitignore: keep ${gitignorePath}`);
+      return;
+    }
+    fs.writeFileSync(gitignorePath, updated, "utf8");
+    console.log(`gitignore: ${gitignorePath}`);
+    return;
+  }
+
+  const next = existing.endsWith("\n") || existing.length === 0 ? existing : `${existing}\n`;
+  fs.writeFileSync(gitignorePath, `${next}\n${block}\n`, "utf8");
+  console.log(`gitignore: ${gitignorePath}`);
 }
 
 function main() {
@@ -170,6 +295,8 @@ function main() {
   for (const dir of dirs) {
     ensureDir(path.join(targetPath, dir));
   }
+
+  removeGeneratedIndexFiles(targetPath);
 
   writeFileIfMissing(
     path.join(targetPath, ".okf-rag", ".gitkeep"),
@@ -223,37 +350,13 @@ function main() {
   );
 
   writeFileIfMissing(
-    path.join(targetPath, "okf-rag-workspace", "index.md"),
-    [
-      "# OKF-RAG Workspace",
-      "",
-      "- `okfs/`: OKF Markdown source of truth.",
-      "- `../.okf-rag/`: generated runtime state.",
-      "",
-    ].join("\n"),
-  );
-
-  writeFileIfMissing(
-    path.join(targetPath, "okf-rag-workspace", "okfs", "index.md"),
-    [
-      "# OKF Sources",
-      "",
-      "Place OKF Markdown files in this directory, then run:",
-      "",
-      "```powershell",
-      "okf-rag-workspace\\bin\\okf-rag.exe ingest --force",
-      "```",
-      "",
-    ].join("\n"),
-  );
-
-  writeFileIfMissing(
     path.join(targetPath, "okf-rag-workspace", "okfs", "local-first-okf-rag-demo.md"),
     [
       "---",
-      "type: OKF",
+      "type: Reference",
       "title: Local-First OKF-RAG Demo",
       "description: Demonstrates the portable OKF-RAG workspace layout, local indexing, and project-scoped MCP setup.",
+      "resource: okf://demo/local-first-okf-rag",
       "tags: [okf, demo, local-first, mcp, zvec]",
       "timestamp: 2026-06-24T00:00:00+08:00",
       "uri: okf://demo/local-first-okf-rag",
@@ -286,6 +389,10 @@ function main() {
   );
 
   copyRuntimeArtifacts(targetPath, args.runtimeSource);
+  copyMiniLmModelIfPresent(sourceRoot, targetPath);
+  cleanStaleEmbeddingState(targetPath);
+  copySkillIfPresent(sourceRoot, targetPath);
+  ensureGitignore(targetPath);
 
   console.log(`target: ${targetPath}`);
   console.log("Codex MCP config was not changed. See setup-for-agent.md for manual project-local Codex setup.");
