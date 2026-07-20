@@ -241,3 +241,9 @@ Expected output:
 4. Generate links and graph metadata without writing `index.md` navigation files.
 5. Build a Zvec collection from the Markdown bundle.
 6. Add latency and recall benchmark commands.
+
+## Related Concepts
+
+<!-- okf-rag:auto-links:start -->
+- [Local-First OKF-RAG Demo](local-first-okf-rag-demo.md) - shared tags: zvec; shared terms: zvec; backlink: shared tags: zvec
+<!-- okf-rag:auto-links:end -->

@@ -4,6 +4,7 @@
 /.mcp_data/
 /.venv/
 /reports/
+/.daemon-*/
 
 # Keep the project-local Codex template, ignore machine-specific config.
 /.codex/*
@@ -30,6 +31,10 @@
 
 # OKF-RAG truth/demo workspace is intentional project content.
 # Do not ignore okf-rag-workspace/.
+/okf-rag-workspace/bin/*
+!/okf-rag-workspace/bin/README.md
+/okf-rag-workspace/raw/*
+!/okf-rag-workspace/raw/.gitkeep
 
 *.pyc
 __pycache__/

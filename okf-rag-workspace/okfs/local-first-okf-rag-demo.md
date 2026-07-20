@@ -38,6 +38,11 @@ Codex MCP configuration should be project-local unless the user explicitly asks 
 - `setup-for-agent.md`: Agent setup, MCP config location, and hot-sync workflow.
 - `.gitignore`: Keeps machine-local config and runtime state out of source control.
 
+## Related Concepts
+
+<!-- okf-rag:auto-links:start -->
+- [Generic Domain-Driven Memory System](domain-driven-memory-okf.md) - shared tags: zvec; shared terms: zvec; backlink: shared tags: zvec
+<!-- okf-rag:auto-links:end -->
 ## Retrieval Notes
 
 - Recall this OKF for setup smoke tests, project-local MCP config, local indexing, and demo workspace validation.

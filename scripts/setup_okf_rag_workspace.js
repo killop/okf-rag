@@ -11,9 +11,25 @@ const RUNTIME_FILES = [
   "zvec_c_api.dll",
 ];
 
+const TOOL_FILES = [
+  "bench_okf_daemon_incremental.js",
+  "bench_okf_relationships.js",
+  "compile_okf_with_llmwiki.js",
+  "diagnostics.js",
+  "llmwiki_env.js",
+  "okf_generation.js",
+  "okf_llmwiki_daemon.js",
+  "okf_maintain.js",
+  "okf_pipeline.js",
+  "okf_relationships.js",
+  "openai_stream_adapter.js",
+];
+
 const SKILL_NAME = "okf-rag-okf-format";
 const GITIGNORE_HEADER = "# OKF-RAG managed ignore";
 const GITIGNORE_FOOTER = "# end OKF-RAG managed ignore";
+const AGENT_BLOCK_START = "<!-- OKF-RAG:START -->";
+const AGENT_BLOCK_END = "<!-- OKF-RAG:END -->";
 const MINILM_PROVIDER = "minilm-l6-v2-onnx";
 const MINILM_MODEL_DIR = "all-MiniLM-L6-v2";
 
@@ -64,8 +80,10 @@ function printHelp() {
 Creates the local OKF-RAG workspace scaffold and copies the prebuilt runtime
 into okf-rag-workspace/bin when release artifacts are available. It also
 copies the bundled local MiniLM model when present, installs the OKF writing
-skill into .agents/skills, removes stale non-MiniLM index state, and writes
-the tracked .gitignore rules for .okf-rag and okf-rag-workspace.
+skill into .agents/skills, installs portable orchestration tools under
+okf-rag-workspace/tools, removes stale non-MiniLM index state, and writes
+the tracked .gitignore rules for .okf-rag and okf-rag-workspace. It creates
+.okf-rag/llmwiki.env.example for project-local provider configuration.
 
 --target must be the project workspace where the current agent is working.
 Do not point it at the okf-rag source repo. The script refuses that by default.
@@ -159,6 +177,19 @@ function copyRuntimeArtifacts(targetPath, runtimeSource) {
   }
 }
 
+function copyToolScripts(sourceRoot, targetPath) {
+  const sourceDir = path.join(sourceRoot, "scripts");
+  const destinationDir = path.join(targetPath, "okf-rag-workspace", "tools");
+  fs.mkdirSync(destinationDir, { recursive: true });
+  for (const fileName of TOOL_FILES) {
+    const source = path.join(sourceDir, fileName);
+    if (!fs.existsSync(source)) {
+      throw new Error(`Missing bundled OKF-RAG tool: ${source}`);
+    }
+    copyFileIfChanged(source, path.join(destinationDir, fileName));
+  }
+}
+
 function copyMiniLmModelIfPresent(sourceRoot, targetPath) {
   const sourceModel = path.join(sourceRoot, ".okf-rag", "models", MINILM_MODEL_DIR);
   const destinationModel = path.join(targetPath, ".okf-rag", "models", MINILM_MODEL_DIR);
@@ -185,17 +216,6 @@ function removePathIfExists(targetPath) {
   }
   fs.rmSync(targetPath, { recursive: true, force: true });
   console.log(`stale: removed ${targetPath}`);
-}
-
-function removeGeneratedIndexFiles(targetPath) {
-  const generatedIndexes = [
-    path.join(targetPath, "okf-rag-workspace", "index.md"),
-    path.join(targetPath, "okf-rag-workspace", "okfs", "index.md"),
-  ];
-
-  for (const indexPath of generatedIndexes) {
-    removePathIfExists(indexPath);
-  }
 }
 
 function cleanStaleEmbeddingState(targetPath) {
@@ -270,6 +290,32 @@ function ensureGitignore(targetPath) {
   console.log(`gitignore: ${gitignorePath}`);
 }
 
+function ensureManagedAgentBlock(targetPath, fileName) {
+  const filePath = path.join(targetPath, fileName);
+  const block = [
+    AGENT_BLOCK_START,
+    "## OKF-RAG",
+    "",
+    "Use the installed `okf-rag-okf-format` skill for OKF generation and maintenance.",
+    "When OKF-RAG MCP is available, query it before searching raw OKF Markdown and do not repeat the same lookup with shell grep/rg.",
+    "After MCP tools/list, background bootstrap starts daemons for raw topic folders containing Markdown; missing daemon-managed OKF output is regenerated automatically.",
+    "Use `okf_rag_relationships` to inspect outgoing relations and incoming backlinks for a known concept.",
+    "Keep OKF Markdown portable: never publish host absolute paths; use bundle-local relative `source_refs`, portable `okf-source://` source IDs, and Obsidian `[[file|title]]` relationship links.",
+    "Project-local LLM provider settings belong in `.okf-rag/llmwiki.env`; keep keys out of Markdown and command arguments.",
+    "Read `.okf-rag/INSTRUCTIONS.md` for project-owned generation priorities. Put daemon input under `okf-rag-workspace/raw/<topic-slug>/`; daemon-managed bundle output lives under `okf-rag-workspace/okfs/<topic-slug>/` and should not be edited as raw input.",
+    AGENT_BLOCK_END,
+  ].join("\n");
+  const existing = fs.existsSync(filePath) ? fs.readFileSync(filePath, "utf8") : "";
+  const start = existing.indexOf(AGENT_BLOCK_START);
+  const end = start >= 0 ? existing.indexOf(AGENT_BLOCK_END, start) : -1;
+  const next =
+    start >= 0 && end >= 0
+      ? `${existing.slice(0, start)}${block}${existing.slice(end + AGENT_BLOCK_END.length)}`
+      : `${existing.trimEnd()}${existing.trim() ? "\n\n" : ""}${block}\n`;
+  if (next !== existing) fs.writeFileSync(filePath, next, "utf8");
+  console.log(`agent: ${filePath}`);
+}
+
 function main() {
   const args = parseArgs(process.argv);
   const targetPath = path.resolve(args.target);
@@ -289,6 +335,8 @@ function main() {
     ".okf-rag/models",
     "okf-rag-workspace",
     "okf-rag-workspace/bin",
+    "okf-rag-workspace/tools",
+    "okf-rag-workspace/raw",
     "okf-rag-workspace/okfs",
   ];
 
@@ -296,10 +344,13 @@ function main() {
     ensureDir(path.join(targetPath, dir));
   }
 
-  removeGeneratedIndexFiles(targetPath);
-
   writeFileIfMissing(
     path.join(targetPath, ".okf-rag", ".gitkeep"),
+    "",
+  );
+
+  writeFileIfMissing(
+    path.join(targetPath, "okf-rag-workspace", "raw", ".gitkeep"),
     "",
   );
 
@@ -308,10 +359,27 @@ function main() {
     [
       "# .okf-rag",
       "",
-      "Derived runtime state for OKF-RAG.",
+      "Local configuration and derived runtime state for OKF-RAG.",
       "",
       "Generated indexes, caches, reports, lock files, and watcher state live here.",
+      "Project-local LLM credentials and provider settings live in `llmwiki.env`; this file is ignored by Git and is never published as OKF knowledge.",
       "Do not treat this directory as source truth. Source OKF Markdown belongs under `okf-rag-workspace/okfs/`.",
+      "",
+    ].join("\n"),
+  );
+
+  writeFileIfMissing(
+    path.join(targetPath, ".okf-rag", "llmwiki.env.example"),
+    [
+      "# Copy to .okf-rag/llmwiki.env and fill the values for this project.",
+      "# Explicit process environment variables override this file.",
+      "LLMWIKI_PROVIDER=openai",
+      "OPENAI_BASE_URL=https://your-gateway.example/v1",
+      "OPENAI_API_KEY=",
+      "LLMWIKI_MODEL=your-model-name",
+      "LLMWIKI_STREAM_ONLY_OPENAI=true",
+      "LLMWIKI_OUTPUT_LANG=Chinese",
+      "LLMWIKI_COMPILE_CONCURRENCY=1",
       "",
     ].join("\n"),
   );
@@ -323,9 +391,14 @@ function main() {
       "",
       "User-authored OKF Markdown lives under `okfs/`.",
       "",
+      "Raw Markdown for daemon-managed generation lives under `raw/<topic-slug>/`.",
+      "Start one daemon per topic without `--source` to create and watch that inbox automatically.",
+      "",
       "The workspace-local runtime entrypoint lives under `bin/` when prebuilt artifacts are available.",
       "",
-      "Generated indexes and caches belong under `../.okf-rag/`, not here.",
+      "Portable pipeline, daemon, maintenance, and benchmark scripts live under `tools/`.",
+      "",
+      "Generated vector indexes and caches belong under `../.okf-rag/`. Deterministic Markdown navigation indexes may live under `okfs/`.",
       "",
     ].join("\n"),
   );
@@ -345,6 +418,16 @@ function main() {
       "```",
       "",
       "Point MCP hosts at this workspace-local executable, not at a repository build directory.",
+      "",
+    ].join("\n"),
+  );
+
+  writeFileIfMissing(
+    path.join(targetPath, ".okf-rag", "INSTRUCTIONS.md"),
+    [
+      "# OKF-RAG Instructions",
+      "",
+      "Project-owned generation priorities belong here. This file is preserved by setup and is not published as OKF knowledge.",
       "",
     ].join("\n"),
   );
@@ -389,10 +472,13 @@ function main() {
   );
 
   copyRuntimeArtifacts(targetPath, args.runtimeSource);
+  copyToolScripts(sourceRoot, targetPath);
   copyMiniLmModelIfPresent(sourceRoot, targetPath);
   cleanStaleEmbeddingState(targetPath);
   copySkillIfPresent(sourceRoot, targetPath);
   ensureGitignore(targetPath);
+  ensureManagedAgentBlock(targetPath, "AGENTS.md");
+  ensureManagedAgentBlock(targetPath, "CLAUDE.md");
 
   console.log(`target: ${targetPath}`);
   console.log("Codex MCP config was not changed. See setup-for-agent.md for manual project-local Codex setup.");

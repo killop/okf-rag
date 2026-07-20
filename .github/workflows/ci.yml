@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          components: rustfmt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Rust format
+        run: cargo fmt --check
+
+      - name: Rust tests
+        run: cargo test -p okf-rag
+
+      - name: Rust clippy
+        run: cargo clippy -p okf-rag --no-deps -- -D warnings
+
+      - name: Release build
+        run: cargo build -p okf-rag --release
+
+      - name: Node tests
+        run: >-
+          node --test
+          scripts\okf_llmwiki_daemon.test.js
+          scripts\llmwiki_env.test.js
+          scripts\compile_okf_with_llmwiki.test.js
+          scripts\diagnostics.test.js
+          scripts\okf_maintain.test.js
+          scripts\okf_relationships.test.js

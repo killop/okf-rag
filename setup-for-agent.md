@@ -74,23 +74,59 @@ If the setup script lives in a separate cloned `okf-rag` source repo, still inst
 node <OKF_RAG_REPO>\scripts\setup_okf_rag_workspace.js --target $WORKDIR --runtime-source <OKF_RAG_REPO>\target\release
 ```
 
-The setup script creates basic directories, creates one demo OKF file, copies the bundled MiniLM model when the installation source includes it, removes stale non-MiniLM derived index state, installs the OKF writing skill into `.agents/skills/`, updates the project `.gitignore`, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`.
+The setup script creates the Raw Markdown inbox root and other basic directories, creates one demo OKF file, copies the bundled MiniLM model when the installation source includes it, removes stale non-MiniLM derived index state, installs the OKF writing skill into `.agents/skills/`, installs portable pipeline/daemon/maintenance tools into `okf-rag-workspace/tools/`, creates the preserved `.okf-rag/INSTRUCTIONS.md`, updates managed blocks in `AGENTS.md` and `CLAUDE.md`, updates the project `.gitignore`, and copies prebuilt runtime artifacts into `okf-rag-workspace/bin/` when they are available from `target/release` or `--runtime-source`.
+
+After setup, run orchestration from the installed workspace rather than the source repository, for example:
+
+```powershell
+node okf-rag-workspace/tools/okf_pipeline.js --source docs --bundle project-docs
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js start --bundle project-docs
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js status --bundle project-docs
+```
+
+When the daemon starts without `--source`, it creates and watches `okf-rag-workspace/raw/<topic-slug>/`. Add Raw Markdown there; do not directly edit the daemon-managed `okfs/<topic-slug>/` output. A successful daemon pass compiles, reconciles, publishes, and ingests the resulting OKF automatically.
 
 The script refuses to run without `--target`, and it refuses to install into the `okf-rag` source repo by default. This is intentional, so an agent cannot accidentally install into the source repo after reading its README.
 
 ```text
 .okf-rag/
+.okf-rag/llmwiki.env.example
 .okf-rag/models/
 .okf-rag/models/all-MiniLM-L6-v2/onnx/model.onnx
 .okf-rag/models/all-MiniLM-L6-v2/tokenizer.json
 okf-rag-workspace/
 okf-rag-workspace/bin/
+okf-rag-workspace/raw/
 okf-rag-workspace/okfs/
 okf-rag-workspace/okfs/local-first-okf-rag-demo.md
 .agents/skills/okf-rag-okf-format/SKILL.md
 ```
 
 It must not create, edit, or validate any `.codex/config.toml`. Project-local Codex config is an explicit manual setup step documented below.
+
+## Project LLM Configuration
+
+Provider settings for llm-wiki generation belong in this project-local, Git-ignored file:
+
+```text
+<WORKDIR>\.okf-rag\llmwiki.env
+```
+
+Setup creates `.okf-rag/llmwiki.env.example`. Copy it to `llmwiki.env` and set only the values needed by the selected provider:
+
+```dotenv
+LLMWIKI_PROVIDER=openai
+OPENAI_BASE_URL=https://your-gateway.example/v1
+OPENAI_API_KEY=your-secret-key
+LLMWIKI_MODEL=your-model-name
+LLMWIKI_STREAM_ONLY_OPENAI=true
+LLMWIKI_OUTPUT_LANG=Chinese
+LLMWIKI_COMPILE_CONCURRENCY=1
+```
+
+`okf_pipeline.js`, `okf_llmwiki_daemon.js`, and `openai_stream_adapter.js --probe` load this file automatically from the project root. Explicit process environment variables override file values. Never put the key in `.okf-rag/INSTRUCTIONS.md`, Raw Markdown, OKF concepts, command arguments, `AGENTS.md`, or `CLAUDE.md`.
+
+Daemon `status --json` reports the config file path and configured key names, but never their values.
 
 After copying the demo or extracting a release package, rebuild the runtime index instead of trusting copied stale state:
 
@@ -157,10 +193,10 @@ Recommended project-local TOML uses paths relative to the current workspace. Bec
 [mcp_servers.okf-rag]
 type = "stdio"
 command = ".\\okf-rag-workspace\\bin\\okf-rag.exe"
-args = ["mcp", "--root", ".", "--no-watch"]
+args = ["mcp", "--root", "."]
 ```
 
-Codex stdio startup should use `--no-watch` so `tools/list` returns quickly and startup is not coupled to background file watching. If an agent writes absolute paths here, replace them with the relative form above. Restart Codex from `WORKDIR` so the MCP server list is reloaded.
+The watcher is deferred until after the MCP `tools/list` response has been flushed, so source scanning and incremental ingest do not participate in Codex startup timeout. If an agent writes absolute paths here, replace them with the relative form above. Restart Codex from `WORKDIR` so the MCP server list is reloaded.
 
 Equivalent generic stdio MCP config:
 
@@ -169,7 +205,7 @@ Equivalent generic stdio MCP config:
   "mcpServers": {
     "okf-rag": {
       "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", ".", "--no-watch"]
+      "args": ["mcp", "--root", "."]
     }
   }
 }
@@ -177,10 +213,10 @@ Equivalent generic stdio MCP config:
 
 ## Start MCP
 
-Use the release binary when available. For Codex stdio MCP, prefer `--no-watch`:
+Use the release binary when available. Automatic incremental indexing is enabled by default:
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
+okf-rag-workspace\bin\okf-rag.exe mcp --root .
 ```
 
 For hosts that cannot resolve relative paths from the workspace root, fix the host working directory instead of copying an absolute path from another project.
@@ -192,16 +228,16 @@ Generic stdio MCP config with explicit workspace-relative paths:
   "mcpServers": {
     "okf-rag": {
       "command": ".\\okf-rag-workspace\\bin\\okf-rag.exe",
-      "args": ["mcp", "--root", ".", "--no-watch"]
+      "args": ["mcp", "--root", "."]
     }
   }
 }
 ```
 
-The MCP server starts a background watcher by default when `--no-watch` is omitted. Use watcher mode only for an intentionally long-running process outside Codex startup:
+The MCP server starts background services after the first `tools/list` response. It scans `okf-rag-workspace/raw/<topic>/`, starts the workspace-local daemon for each topic containing Markdown, then starts the zvec watcher. Missing daemon-managed output is regenerated in the background and does not delay MCP startup. Disable this only when another process exclusively owns both generation and indexing:
 
 ```powershell
-okf-rag-workspace\bin\okf-rag.exe mcp --root .
+okf-rag-workspace\bin\okf-rag.exe mcp --root . --no-watch
 ```
 
 ## MCP Tools
@@ -225,6 +261,15 @@ Arguments:
   "query": "domain driven memory retrieval zvec",
   "top_k": 5,
   "candidate_k": 50,
+  "root": "."
+}
+```
+
+Use `okf_rag_relationships` when the task needs the graph around one known concept. It returns outgoing semantic relations and incoming backlinks without requiring a shell corpus search.
+
+```json
+{
+  "concept": "resource-hot-update/concepts/资源热更新模块",
   "root": "."
 }
 ```
@@ -256,6 +301,7 @@ If `source` is omitted, it defaults to `okf-rag-workspace/okfs`.
 
 The watcher uses snapshot diffing, debounce, and A/B slots:
 
+- MCP `initialize` and `tools/list` finish before watcher startup.
 - Current queries read the active slot.
 - Dirty Markdown triggers rebuild of the inactive slot.
 - `active-slot.json` changes only after the inactive slot rebuild succeeds.

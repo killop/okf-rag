@@ -15,14 +15,33 @@ const ROOT_FILES = [
   "README-CN.md",
   "setup-for-agent.md",
   "OKF-RAG-BENCHMARK.md",
+  "LICENSE",
+  "THIRD_PARTY_NOTICES.md",
 ];
 
 const SCRIPT_FILES = [
+  "compile_okf_with_llmwiki.js",
+  "diagnostics.js",
+  "llmwiki_env.js",
+  "okf_llmwiki_daemon.js",
+  "okf_generation.js",
+  "okf_maintain.js",
+  "okf_pipeline.js",
+  "okf_relationships.js",
+  "openai_stream_adapter.js",
+  "bench_okf_daemon_incremental.js",
+  "bench_okf_relationships.js",
   "package_okf_rag_release.js",
   "setup_okf_rag_workspace.js",
 ];
 
 const COPY_DIRS = ["okf-rag-workspace", "skills"];
+
+const THIRD_PARTY_LICENSE_FILES = [
+  ["third_party/onnxruntime/LICENSE", "onnxruntime-LICENSE"],
+  ["third_party/onnxruntime/ThirdPartyNotices.txt", "onnxruntime-ThirdPartyNotices.txt"],
+  ["third_party/zvec-rust/LICENSE", "zvec-LICENSE"],
+];
 
 function parseArgs(argv) {
   const args = {
@@ -293,6 +312,12 @@ function main() {
   fs.rmSync(packagePath, { recursive: true, force: true });
   for (const fileName of ROOT_FILES) {
     copyFileIfExists(path.join(rootPath, fileName), packagePath);
+  }
+  const licensesPath = path.join(packagePath, "licenses");
+  fs.mkdirSync(licensesPath, { recursive: true });
+  for (const [source, destination] of THIRD_PARTY_LICENSE_FILES) {
+    const sourcePath = path.join(rootPath, ...source.split("/"));
+    if (fs.existsSync(sourcePath)) fs.copyFileSync(sourcePath, path.join(licensesPath, destination));
   }
 
   for (const fileName of SCRIPT_FILES) {

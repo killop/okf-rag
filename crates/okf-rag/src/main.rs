@@ -5,6 +5,7 @@ use std::fs::{self, OpenOptions};
 use std::hash::{Hash, Hasher};
 use std::io::{self, BufRead, Write};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -54,6 +55,17 @@ type AppResult<T> = Result<T, Box<dyn Error>>;
 struct Concept {
     concept_id: String,
     source_path: PathBuf,
+    concept_type: String,
+    bundle: String,
+    canonical_id: String,
+    generation_id: String,
+    parent_id: String,
+    source_document: String,
+    section_path: String,
+    aliases: Vec<String>,
+    source_refs: Vec<String>,
+    outbound_relations: Vec<String>,
+    inbound_relations: Vec<String>,
     title: String,
     description: String,
     tags: Vec<String>,
@@ -67,6 +79,17 @@ struct Concept {
 struct Hit {
     concept_id: String,
     source_path: String,
+    concept_type: String,
+    bundle: String,
+    canonical_id: String,
+    generation_id: String,
+    parent_id: String,
+    source_document: String,
+    section_path: String,
+    aliases: Vec<String>,
+    source_refs: Vec<String>,
+    outbound_relations: Vec<String>,
+    inbound_relations: Vec<String>,
     title: String,
     description: String,
     resource: String,
@@ -480,6 +503,17 @@ fn ingest_workspace(root: &Path, source: &Path, force: bool) -> AppResult<Ingest
             doc.set_pk(&stable_pk(&concept.concept_id));
             doc.add_string("concept_id", &concept.concept_id)?;
             doc.add_string("source_path", path_str(&concept.source_path)?)?;
+            doc.add_string("concept_type", &concept.concept_type)?;
+            doc.add_string("bundle", &concept.bundle)?;
+            doc.add_string("canonical_id", &concept.canonical_id)?;
+            doc.add_string("generation_id", &concept.generation_id)?;
+            doc.add_string("parent_id", &concept.parent_id)?;
+            doc.add_string("source_document", &concept.source_document)?;
+            doc.add_string("section_path", &concept.section_path)?;
+            doc.add_string("aliases", &concept.aliases.join("\n"))?;
+            doc.add_string("source_refs", &concept.source_refs.join("\n"))?;
+            doc.add_string("outbound_relations", &concept.outbound_relations.join("\n"))?;
+            doc.add_string("inbound_relations", &concept.inbound_relations.join("\n"))?;
             doc.add_string("title", &concept.title)?;
             doc.add_string("description", &concept.description)?;
             doc.add_string("tags", &concept.tags.join(", "))?;
@@ -572,6 +606,17 @@ fn query_open_collection_with_vector(
         .output_fields(&[
             "concept_id",
             "source_path",
+            "concept_type",
+            "bundle",
+            "canonical_id",
+            "generation_id",
+            "parent_id",
+            "source_document",
+            "section_path",
+            "aliases",
+            "source_refs",
+            "outbound_relations",
+            "inbound_relations",
             "title",
             "description",
             "tags",
@@ -694,7 +739,7 @@ fn bench_workspace(
             type_entry.hit_5 += usize::from(rank.is_some_and(|value| value <= 5));
             type_entry.hit_10 += usize::from(rank.is_some_and(|value| value <= 10));
 
-            if !rank.is_some_and(|value| value <= 10) && misses.len() < 20 {
+            if rank.is_none_or(|value| value > 10) && misses.len() < 20 {
                 misses.push(BenchMiss {
                     id: case.id.clone(),
                     query_type: case.query_type.clone(),
@@ -830,6 +875,21 @@ fn print_hits(hits: &[Hit]) {
             hit.concept_id
         );
         println!("   path: {}", hit.source_path);
+        if !hit.bundle.is_empty() || !hit.concept_type.is_empty() {
+            println!("   route: bundle={} type={}", hit.bundle, hit.concept_type);
+        }
+        if !hit.parent_id.is_empty() {
+            println!("   parent: {}", hit.parent_id);
+        }
+        if !hit.source_refs.is_empty() {
+            println!("   sources: {}", hit.source_refs.join(", "));
+        }
+        if !hit.outbound_relations.is_empty() {
+            println!("   outgoing: {}", hit.outbound_relations.join(", "));
+        }
+        if !hit.inbound_relations.is_empty() {
+            println!("   incoming: {}", hit.inbound_relations.join(", "));
+        }
         if !hit.uri.is_empty() {
             println!("   uri: {}", hit.uri);
         }
@@ -845,11 +905,47 @@ fn print_hits(hits: &[Hit]) {
     }
 }
 
+fn query_route_trace(hits: &[Hit], candidate_k: usize) -> Vec<Value> {
+    let mut bundles = BTreeMap::<String, usize>::new();
+    let mut concept_types = BTreeMap::<String, usize>::new();
+    let mut source_documents = BTreeMap::<String, usize>::new();
+    for hit in hits {
+        if !hit.bundle.is_empty() {
+            *bundles.entry(hit.bundle.clone()).or_default() += 1;
+        }
+        if !hit.concept_type.is_empty() {
+            *concept_types.entry(hit.concept_type.clone()).or_default() += 1;
+        }
+        if !hit.source_document.is_empty() {
+            *source_documents
+                .entry(hit.source_document.clone())
+                .or_default() += 1;
+        }
+    }
+    vec![
+        json!({
+            "phase": "hybrid_recall",
+            "candidate_k": candidate_k,
+            "selected_count": hits.len()
+        }),
+        json!({
+            "phase": "bundle_route",
+            "bundles": bundles
+        }),
+        json!({
+            "phase": "concept_type_route",
+            "types": concept_types
+        }),
+        json!({
+            "phase": "source_document_route",
+            "source_documents": source_documents
+        }),
+    ]
+}
+
 fn command_mcp(root: PathBuf, watch: bool) -> AppResult<()> {
     init_workspace(&root)?;
-    if watch {
-        start_workspace_watcher(root.clone());
-    }
+    let mut watcher_started = !watch;
     let stdin = io::stdin();
     let mut stdout = io::stdout();
     for line in stdin.lock().lines() {
@@ -863,20 +959,123 @@ fn command_mcp(root: PathBuf, watch: bool) -> AppResult<()> {
         if line.trim().is_empty() {
             continue;
         }
+        let mut start_watcher_after_response = false;
         let response = match serde_json::from_str::<RpcRequest>(&line) {
-            Ok(request) => handle_rpc_request(&root, request),
+            Ok(request) => {
+                start_watcher_after_response =
+                    !watcher_started && should_start_mcp_watcher_after_response(&request.method);
+                handle_rpc_request(&root, request)
+            }
             Err(err) => Some(rpc_error(None, -32700, format!("parse error: {err}"))),
         };
         if let Some(response) = response {
             writeln!(stdout, "{}", serde_json::to_string(&response)?)?;
             stdout.flush()?;
         }
+        if start_watcher_after_response {
+            start_workspace_watcher(root.clone());
+            watcher_started = true;
+        }
     }
     Ok(())
 }
 
+fn should_start_mcp_watcher_after_response(method: &str) -> bool {
+    matches!(method, "tools/list" | "tools/call")
+}
+
 fn start_workspace_watcher(root: PathBuf) {
-    thread::spawn(move || watch_default_okf_source(root));
+    thread::spawn(move || {
+        start_raw_topic_daemons_best_effort(&root);
+        watch_default_okf_source(root);
+    });
+}
+
+fn start_raw_topic_daemons_best_effort(root: &Path) {
+    let script = workspace_dir(root)
+        .join("tools")
+        .join("okf_llmwiki_daemon.js");
+    if !script.exists() {
+        return;
+    }
+    let topics = match discover_raw_topics(root) {
+        Ok(topics) => topics,
+        Err(err) => {
+            eprintln!("okf-rag MCP raw bootstrap: failed to scan raw topics: {err}");
+            return;
+        }
+    };
+    let node = env::var("OKF_RAG_NODE_BIN").unwrap_or_else(|_| "node".to_string());
+    for topic in topics {
+        match Command::new(&node)
+            .arg(&script)
+            .arg("start")
+            .arg("--root")
+            .arg(root)
+            .arg("--bundle")
+            .arg(&topic)
+            .current_dir(root)
+            .output()
+        {
+            Ok(output) if output.status.success() => {}
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                eprintln!(
+                    "okf-rag MCP raw bootstrap: failed to start topic {topic}: {}",
+                    stderr.trim()
+                );
+            }
+            Err(err) => {
+                eprintln!(
+                    "okf-rag MCP raw bootstrap: failed to launch node for topic {topic}: {err}"
+                );
+            }
+        }
+    }
+}
+
+fn discover_raw_topics(root: &Path) -> AppResult<Vec<String>> {
+    let raw_root = workspace_dir(root).join("raw");
+    if !raw_root.exists() {
+        return Ok(Vec::new());
+    }
+    let mut topics = Vec::new();
+    for entry in fs::read_dir(raw_root)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || !directory_contains_markdown(&entry.path())? {
+            continue;
+        }
+        topics.push(name);
+    }
+    topics.sort();
+    Ok(topics)
+}
+
+fn directory_contains_markdown(dir: &Path) -> AppResult<bool> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        if file_type.is_dir() {
+            if !entry.file_name().to_string_lossy().starts_with('.')
+                && directory_contains_markdown(&entry.path())?
+            {
+                return Ok(true);
+            }
+        } else if file_type.is_file()
+            && entry
+                .path()
+                .extension()
+                .and_then(|value| value.to_str())
+                .is_some_and(|value| value.eq_ignore_ascii_case("md"))
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn watch_default_okf_source(root: PathBuf) {
@@ -1112,13 +1311,27 @@ fn handle_tool_call(server_root: &Path, params: Value) -> AppResult<Value> {
             let candidate_k =
                 usize_argument(&arguments, "candidate_k").unwrap_or(DEFAULT_CANDIDATE_K);
             let hits = query_workspace(&root, text, top_k, candidate_k)?;
+            let route_trace = query_route_trace(&hits, candidate_k);
             Ok(tool_result(json!({
                 "query": text,
                 "top_k": top_k,
                 "candidate_k": candidate_k,
                 "guidance": "Use hits[].source_path as the entry point. If a hit is inside a bundle folder, read that folder's index.md directly for progressive disclosure. Do not run shell rg/grep/Select-String over okf-rag-workspace/okfs to repeat this lookup; issue another okf_rag_query if the search terms need refinement.",
+                "retrieval_policy": {
+                    "mode": "mcp",
+                    "mode_lock": "For this lookup, continue with okf_rag_query refinements or targeted reads of returned paths; do not switch to shell corpus search.",
+                    "allowed_followups": ["okf_rag_query", "okf_rag_relationships", "read_returned_source_path", "read_returned_bundle_index"]
+                },
+                "route_trace": route_trace,
                 "hits": hits
             })))
+        }
+        "okf_rag_relationships" => {
+            let root = root_from_arguments(server_root, &arguments);
+            let concept = string_argument(&arguments, "concept")
+                .or_else(|| string_argument(&arguments, "canonical_id"))
+                .ok_or("okf_rag_relationships requires concept or canonical_id")?;
+            Ok(tool_result(relationship_view(&root, concept)?))
         }
         other => Err(format!("unknown tool: {other}").into()),
     }
@@ -1151,7 +1364,7 @@ fn mcp_tools() -> Value {
             },
             {
                 "name": "okf_rag_query",
-                "description": "Run full_hybrid retrieval over the local OKF markdown index. Use returned hits[].source_path as the entry point; do not follow this with shell rg/grep/Select-String over okf-rag-workspace/okfs for the same lookup.",
+                "description": "Run full_hybrid retrieval over the local OKF markdown index. This starts MCP retrieval mode for the lookup: refine with this tool or read returned paths, and do not repeat the corpus search with shell rg/grep/Select-String.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["query"],
@@ -1162,9 +1375,130 @@ fn mcp_tools() -> Value {
                         "candidate_k": { "type": "integer", "minimum": 1, "default": 100 }
                     }
                 }
+            },
+            {
+                "name": "okf_rag_relationships",
+                "description": "Show the outgoing relations and incoming backlinks for one OKF concept. Accepts a canonical ID, concept path, exact title, URI, or alias and returns neighbor titles and workspace-relative Markdown paths.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "root": { "type": "string", "description": "Workspace root. Defaults to the server root." },
+                        "concept": { "type": "string", "description": "Canonical ID, concept path, exact title, URI, or alias." },
+                        "canonical_id": { "type": "string", "description": "Alias for concept when addressing a canonical ID." }
+                    },
+                    "anyOf": [
+                        { "required": ["concept"] },
+                        { "required": ["canonical_id"] }
+                    ]
+                }
             }
         ]
     })
+}
+
+fn relationship_view(root: &Path, needle: &str) -> AppResult<Value> {
+    let source = default_okf_source_dir(root);
+    let concepts = load_concepts(root, &source)?;
+    let normalized = needle.trim().to_lowercase();
+    let exact = concepts.iter().find(|concept| {
+        [
+            concept.canonical_id.as_str(),
+            concept.concept_id.as_str(),
+            concept.title.as_str(),
+            concept.uri.as_str(),
+            concept.resource.as_str(),
+        ]
+        .iter()
+        .any(|value| value.trim().to_lowercase() == normalized)
+            || concept
+                .aliases
+                .iter()
+                .any(|alias| alias.trim().to_lowercase() == normalized)
+    });
+    let concept = match exact {
+        Some(concept) => concept,
+        None => {
+            let candidates = concepts
+                .iter()
+                .filter(|concept| {
+                    concept.title.to_lowercase().contains(&normalized)
+                        || concept.canonical_id.to_lowercase().contains(&normalized)
+                })
+                .take(6)
+                .map(|concept| concept.title.clone())
+                .collect::<Vec<_>>();
+            if candidates.len() == 1 {
+                concepts
+                    .iter()
+                    .find(|concept| concept.title == candidates[0])
+                    .ok_or("relationship concept disappeared")?
+            } else if candidates.is_empty() {
+                return Err(format!("OKF concept not found: {needle}").into());
+            } else {
+                return Err(format!(
+                    "OKF concept is ambiguous: {needle}; candidates: {}",
+                    candidates.join(", ")
+                )
+                .into());
+            }
+        }
+    };
+
+    let by_id = concepts
+        .iter()
+        .map(|item| {
+            let id = if item.canonical_id.is_empty() {
+                item.concept_id.as_str()
+            } else {
+                item.canonical_id.as_str()
+            };
+            (id, item)
+        })
+        .collect::<BTreeMap<_, _>>();
+    let relation_json = |value: &str, direction: &str| {
+        let (predicate, neighbor_id) = value.split_once('|').unwrap_or(("references", value));
+        let neighbor = by_id.get(neighbor_id).copied();
+        let neighbor_path = neighbor
+            .map(|item| workspace_relative_path(root, &item.source_path))
+            .unwrap_or_default();
+        json!({
+            "direction": direction,
+            "predicate": predicate,
+            "canonical_id": neighbor_id,
+            "title": neighbor.map(|item| item.title.as_str()).unwrap_or(""),
+            "source_path": neighbor_path
+        })
+    };
+    let canonical_id = if concept.canonical_id.is_empty() {
+        concept.concept_id.as_str()
+    } else {
+        concept.canonical_id.as_str()
+    };
+    Ok(json!({
+        "concept": {
+            "canonical_id": canonical_id,
+            "title": concept.title,
+            "source_path": workspace_relative_path(root, &concept.source_path)
+        },
+        "outgoing": concept
+            .outbound_relations
+            .iter()
+            .map(|value| relation_json(value, "outgoing"))
+            .collect::<Vec<_>>(),
+        "incoming": concept
+            .inbound_relations
+            .iter()
+            .map(|value| relation_json(value, "incoming"))
+            .collect::<Vec<_>>()
+    }))
+}
+
+fn workspace_relative_path(root: &Path, value: &Path) -> String {
+    value
+        .strip_prefix(root)
+        .unwrap_or(value)
+        .to_string_lossy()
+        .replace('\\', "/")
 }
 
 fn rpc_result(id: Option<Value>, result: Value) -> Value {
@@ -1679,6 +2013,52 @@ fn create_schema() -> zvec::Result<CollectionSchema> {
     CollectionSchema::builder("okf_rag")
         .add_field(FieldSchema::new("concept_id", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("source_path", DataType::String, false, 0)?)
+        .add_field(FieldSchema::new(
+            "concept_type",
+            DataType::String,
+            false,
+            0,
+        )?)
+        .add_field(FieldSchema::new("bundle", DataType::String, false, 0)?)
+        .add_field(FieldSchema::new(
+            "canonical_id",
+            DataType::String,
+            false,
+            0,
+        )?)
+        .add_field(FieldSchema::new(
+            "generation_id",
+            DataType::String,
+            false,
+            0,
+        )?)
+        .add_field(FieldSchema::new("parent_id", DataType::String, false, 0)?)
+        .add_field(FieldSchema::new(
+            "source_document",
+            DataType::String,
+            false,
+            0,
+        )?)
+        .add_field(FieldSchema::new(
+            "section_path",
+            DataType::String,
+            false,
+            0,
+        )?)
+        .add_field(FieldSchema::new("aliases", DataType::String, false, 0)?)
+        .add_field(FieldSchema::new("source_refs", DataType::String, false, 0)?)
+        .add_field(FieldSchema::new(
+            "outbound_relations",
+            DataType::String,
+            false,
+            0,
+        )?)
+        .add_field(FieldSchema::new(
+            "inbound_relations",
+            DataType::String,
+            false,
+            0,
+        )?)
         .add_field(FieldSchema::new("title", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("description", DataType::String, false, 0)?)
         .add_field(FieldSchema::new("tags", DataType::String, false, 0)?)
@@ -1713,6 +2093,17 @@ fn load_concepts(root: &Path, source: &Path) -> AppResult<Vec<Concept>> {
             .replace('\\', "/")
             .trim_start_matches('/')
             .to_string();
+        let bundle = parsed
+            .frontmatter
+            .get("okf_bundle")
+            .cloned()
+            .or_else(|| concept_id.split('/').next().map(ToString::to_string))
+            .unwrap_or_default();
+        let source_document = parsed
+            .frontmatter
+            .get("source_document")
+            .cloned()
+            .unwrap_or_default();
         let title = parsed
             .frontmatter
             .get("title")
@@ -1732,6 +2123,53 @@ fn load_concepts(root: &Path, source: &Path) -> AppResult<Vec<Concept>> {
         concepts.push(Concept {
             concept_id,
             source_path: file,
+            concept_type: parsed
+                .frontmatter
+                .get("type")
+                .cloned()
+                .unwrap_or_else(|| "Reference".to_string()),
+            bundle,
+            canonical_id: parsed
+                .frontmatter
+                .get("canonical_id")
+                .cloned()
+                .unwrap_or_default(),
+            generation_id: parsed
+                .frontmatter
+                .get("okf_generation")
+                .cloned()
+                .unwrap_or_default(),
+            parent_id: parsed
+                .frontmatter
+                .get("parent_id")
+                .cloned()
+                .unwrap_or_else(|| source_document.clone()),
+            source_document,
+            section_path: parsed
+                .frontmatter
+                .get("section_path")
+                .cloned()
+                .unwrap_or_default(),
+            aliases: parsed
+                .frontmatter
+                .get("aliases")
+                .map(|value| parse_inline_tags(value))
+                .unwrap_or_default(),
+            source_refs: parsed
+                .frontmatter
+                .get("source_refs")
+                .map(|value| parse_inline_tags(value))
+                .unwrap_or_default(),
+            outbound_relations: parsed
+                .frontmatter
+                .get("outbound_relations")
+                .map(|value| parse_inline_tags(value))
+                .unwrap_or_default(),
+            inbound_relations: parsed
+                .frontmatter
+                .get("inbound_relations")
+                .map(|value| parse_inline_tags(value))
+                .unwrap_or_default(),
             title,
             description: parsed
                 .frontmatter
@@ -1764,7 +2202,12 @@ fn collect_markdown_files(dir: &Path, out: &mut Vec<PathBuf>) -> AppResult<()> {
         let path = entry.path();
         if entry.file_type()?.is_dir() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if name == META_DIR || name == "target" || name == ".git" || name == "third_party" {
+            if name == META_DIR
+                || name == "target"
+                || name == ".git"
+                || name == "third_party"
+                || name == "references"
+            {
                 continue;
             }
             collect_markdown_files(&path, out)?;
@@ -1782,7 +2225,7 @@ fn should_skip_path(root: &Path, path: &Path) -> bool {
     path.starts_with(meta_dir(root))
         || path.components().any(|part| {
             let text = part.as_os_str().to_string_lossy();
-            text == ".git" || text == "target" || text == "third_party"
+            text == ".git" || text == "target" || text == "third_party" || text == "references"
         })
 }
 
@@ -1899,12 +2342,21 @@ fn stable_pk(text: &str) -> String {
 
 fn full_embedding_text(concept: &Concept) -> String {
     format!(
-        "body:\n{}\n\ncatalog:\ntitle: {}\ndescription: {}\ntags: {}\nresource: {}\n\nrecall:\nuri: {}\ndisclosure: {}\nwhen_to_recall: {}",
+        "body:\n{}\n\ncatalog:\ntype: {}\nbundle: {}\ntitle: {}\ndescription: {}\ntags: {}\nresource: {}\nparent: {}\nsource_document: {}\nsection_path: {}\naliases: {}\nsource_refs: {}\noutbound_relations: {}\ninbound_relations: {}\n\nrecall:\nuri: {}\ndisclosure: {}\nwhen_to_recall: {}",
         concept.body,
+        concept.concept_type,
+        concept.bundle,
         concept.title,
         concept.description,
         concept.tags.join(", "),
         concept.resource,
+        concept.parent_id,
+        concept.source_document,
+        concept.section_path,
+        concept.aliases.join(", "),
+        concept.source_refs.join(", "),
+        concept.outbound_relations.join(", "),
+        concept.inbound_relations.join(", "),
         concept.uri,
         concept.disclosure,
         concept.disclosure
@@ -1955,6 +2407,21 @@ fn normalize(vector: &mut [f32]) {
 }
 
 fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
+    let concept_type = doc.get_string("concept_type")?.unwrap_or_default();
+    let bundle = doc.get_string("bundle")?.unwrap_or_default();
+    let canonical_id = doc.get_string("canonical_id")?.unwrap_or_default();
+    let generation_id = doc.get_string("generation_id")?.unwrap_or_default();
+    let parent_id = doc.get_string("parent_id")?.unwrap_or_default();
+    let source_document = doc.get_string("source_document")?.unwrap_or_default();
+    let section_path = doc.get_string("section_path")?.unwrap_or_default();
+    let aliases_text = doc.get_string("aliases")?.unwrap_or_default();
+    let source_refs_text = doc.get_string("source_refs")?.unwrap_or_default();
+    let outbound_relations_text = doc.get_string("outbound_relations")?.unwrap_or_default();
+    let inbound_relations_text = doc.get_string("inbound_relations")?.unwrap_or_default();
+    let aliases = split_stored_list(&aliases_text);
+    let source_refs = split_stored_list(&source_refs_text);
+    let outbound_relations = split_stored_list(&outbound_relations_text);
+    let inbound_relations = split_stored_list(&inbound_relations_text);
     let title = doc.get_string("title")?.unwrap_or_default();
     let description = doc.get_string("description")?.unwrap_or_default();
     let tags = doc.get_string("tags")?.unwrap_or_default();
@@ -1967,6 +2434,15 @@ fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
     let fields = [
         (&title, 2.0_f32),
         (&description, 1.5),
+        (&concept_type, 1.0),
+        (&bundle, 0.8),
+        (&parent_id, 0.8),
+        (&source_document, 0.8),
+        (&section_path, 1.0),
+        (&aliases_text, 1.2),
+        (&source_refs_text, 0.8),
+        (&outbound_relations_text, 1.0),
+        (&inbound_relations_text, 1.0),
         (&tags, 1.4),
         (&resource, 1.2),
         (&uri, 1.2),
@@ -1977,6 +2453,17 @@ fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
     Ok(Hit {
         concept_id,
         source_path,
+        concept_type,
+        bundle,
+        canonical_id,
+        generation_id,
+        parent_id,
+        source_document,
+        section_path,
+        aliases,
+        source_refs,
+        outbound_relations,
+        inbound_relations,
         title,
         description,
         resource,
@@ -1985,6 +2472,15 @@ fn hit_from_doc(doc: &zvec::Doc, query: &str) -> AppResult<Hit> {
         vector_score: doc.get_score(),
         lexical_score,
     })
+}
+
+fn split_stored_list(value: &str) -> Vec<String> {
+    value
+        .lines()
+        .map(str::trim)
+        .filter(|item| !item.is_empty())
+        .map(ToString::to_string)
+        .collect()
 }
 
 fn lexical_score(query: &str, fields: &[(&String, f32)]) -> f32 {
@@ -2360,6 +2856,25 @@ fn concepts_fingerprint(concepts: &[Concept], metadata: &EmbeddingMetadata) -> S
     for concept in concepts {
         hash_text_part(&mut hasher, &concept.concept_id);
         hash_text_part(&mut hasher, &concept.source_path.to_string_lossy());
+        hash_text_part(&mut hasher, &concept.concept_type);
+        hash_text_part(&mut hasher, &concept.bundle);
+        hash_text_part(&mut hasher, &concept.canonical_id);
+        hash_text_part(&mut hasher, &concept.generation_id);
+        hash_text_part(&mut hasher, &concept.parent_id);
+        hash_text_part(&mut hasher, &concept.source_document);
+        hash_text_part(&mut hasher, &concept.section_path);
+        for alias in &concept.aliases {
+            hash_text_part(&mut hasher, alias);
+        }
+        for source_ref in &concept.source_refs {
+            hash_text_part(&mut hasher, source_ref);
+        }
+        for relation in &concept.outbound_relations {
+            hash_text_part(&mut hasher, relation);
+        }
+        for relation in &concept.inbound_relations {
+            hash_text_part(&mut hasher, relation);
+        }
         hash_text_part(&mut hasher, &concept.title);
         hash_text_part(&mut hasher, &concept.description);
         for tag in &concept.tags {
@@ -2467,5 +2982,155 @@ Reduce logo churn through faster support.
         let strong_score = lexical_score(query, &[(&strong, 3.0)]);
 
         assert!(strong_score > weak_score);
+    }
+
+    #[test]
+    fn load_concepts_skips_okf_references_dir() {
+        let root = std::env::temp_dir().join(format!(
+            "okf-rag-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let source = root.join("okf-rag-workspace").join("okfs");
+        fs::create_dir_all(source.join("bundle").join("concepts")).unwrap();
+        fs::create_dir_all(source.join("bundle").join("references")).unwrap();
+        fs::write(
+            source.join("bundle").join("concepts").join("alpha.md"),
+            "---\ntype: Business Rule\ntitle: Alpha\nokf_bundle: bundle\nokf_generation: run-1\ncanonical_id: bundle/concepts/alpha\nparent_id: bundle/concepts/root\nsource_document: bundle/concepts/source\nsection_path: Guide / Alpha\naliases: [alpha-old, alpha-rule]\nsource_refs: [file:guide.md, file:policy.md]\noutbound_relations: [depends_on|bundle/concepts/beta]\ninbound_relations: [implements|bundle/concepts/gamma]\n---\n# Alpha\n",
+        )
+        .unwrap();
+        fs::write(
+            source.join("bundle").join("references").join("raw.md"),
+            "---\ntitle: Raw Source\n---\nsource text\n",
+        )
+        .unwrap();
+
+        let concepts = load_concepts(&root, &source).unwrap();
+
+        assert_eq!(concepts.len(), 1);
+        assert_eq!(concepts[0].concept_id, "bundle/concepts/alpha");
+        assert_eq!(concepts[0].concept_type, "Business Rule");
+        assert_eq!(concepts[0].bundle, "bundle");
+        assert_eq!(concepts[0].generation_id, "run-1");
+        assert_eq!(concepts[0].parent_id, "bundle/concepts/root");
+        assert_eq!(concepts[0].source_document, "bundle/concepts/source");
+        assert_eq!(concepts[0].section_path, "Guide / Alpha");
+        assert_eq!(concepts[0].aliases, vec!["alpha-old", "alpha-rule"]);
+        assert_eq!(
+            concepts[0].source_refs,
+            vec!["file:guide.md", "file:policy.md"]
+        );
+        assert_eq!(
+            concepts[0].outbound_relations,
+            vec!["depends_on|bundle/concepts/beta"]
+        );
+        assert_eq!(
+            concepts[0].inbound_relations,
+            vec!["implements|bundle/concepts/gamma"]
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mcp_query_declares_retrieval_mode_lock() {
+        let tools = mcp_tools();
+        let query = tools["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "okf_rag_query")
+            .unwrap();
+        let description = query["description"].as_str().unwrap();
+
+        assert!(description.contains("MCP retrieval mode"));
+        assert!(description.contains("do not repeat"));
+        assert!(tools["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|tool| tool["name"] == "okf_rag_relationships"));
+    }
+
+    #[test]
+    fn mcp_relationship_view_returns_outgoing_and_incoming_neighbors() {
+        let root = std::env::temp_dir().join(format!(
+            "okf-rag-rel-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let concepts = root
+            .join("okf-rag-workspace")
+            .join("okfs")
+            .join("bundle")
+            .join("concepts");
+        fs::create_dir_all(&concepts).unwrap();
+        fs::write(
+            concepts.join("alpha.md"),
+            "---\ntype: Reference\ntitle: Alpha\ncanonical_id: bundle/concepts/alpha\noutbound_relations: [uses|bundle/concepts/beta]\ninbound_relations: [calls|bundle/concepts/gamma]\n---\n# Alpha\n",
+        )
+        .unwrap();
+        fs::write(
+            concepts.join("beta.md"),
+            "---\ntype: Reference\ntitle: Beta\ncanonical_id: bundle/concepts/beta\noutbound_relations: []\ninbound_relations: [uses|bundle/concepts/alpha]\n---\n# Beta\n",
+        )
+        .unwrap();
+        fs::write(
+            concepts.join("gamma.md"),
+            "---\ntype: Reference\ntitle: Gamma\ncanonical_id: bundle/concepts/gamma\noutbound_relations: [calls|bundle/concepts/alpha]\ninbound_relations: []\n---\n# Gamma\n",
+        )
+        .unwrap();
+
+        let view = relationship_view(&root, "bundle/concepts/alpha").unwrap();
+        assert_eq!(view["outgoing"][0]["title"], "Beta");
+        assert_eq!(view["incoming"][0]["title"], "Gamma");
+        assert_eq!(
+            view["concept"]["source_path"],
+            "okf-rag-workspace/okfs/bundle/concepts/alpha.md"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mcp_raw_bootstrap_discovers_only_topics_with_markdown() {
+        let root = std::env::temp_dir().join(format!(
+            "okf-rag-raw-topics-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let raw = root.join("okf-rag-workspace").join("raw");
+        fs::create_dir_all(raw.join("alpha").join("nested")).unwrap();
+        fs::create_dir_all(raw.join("empty")).unwrap();
+        fs::create_dir_all(raw.join("beta")).unwrap();
+        fs::write(
+            raw.join("alpha").join("nested").join("source.md"),
+            "# Alpha\n",
+        )
+        .unwrap();
+        fs::write(raw.join("beta").join("notes.txt"), "not markdown\n").unwrap();
+
+        assert_eq!(discover_raw_topics(&root).unwrap(), vec!["alpha"]);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mcp_watcher_starts_only_after_tool_handshake_response() {
+        assert!(!should_start_mcp_watcher_after_response("initialize"));
+        assert!(!should_start_mcp_watcher_after_response(
+            "notifications/initialized"
+        ));
+        assert!(should_start_mcp_watcher_after_response("tools/list"));
+        assert!(should_start_mcp_watcher_after_response("tools/call"));
     }
 }

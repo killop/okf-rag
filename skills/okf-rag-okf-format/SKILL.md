@@ -1,6 +1,6 @@
 ---
 name: okf-rag-okf-format
-description: Use this skill whenever the user asks to create, edit, review, validate, organize, or index OKF Markdown for OKF-RAG, writes files under okf-rag-workspace/okfs, mentions "our OKF format", "okf md", "OKF truth", Knowledge Catalog compatible OKF bundles, top-level URI/disclosure recall metadata, or agent-readable memory documents that will be vectorized by zvec. This skill teaches the Knowledge Catalog OKF bundle layout plus the exact Markdown and YAML shape expected by the local okf-rag parser. Trigger it even when the user casually asks to整理/organize a feature, subsystem, workflow, architecture area, or project memory; multi-concept topics should become a folder with index.md and concept files, not one monolithic Markdown file.
+description: Use this skill whenever the user asks to create, edit, review, validate, organize, generate, daemon-ingest, or index OKF Markdown for OKF-RAG; asks where to add raw Markdown or notes for automatic consumption; writes files under okf-rag-workspace/raw or okf-rag-workspace/okfs; mentions "our OKF format", "okf md", "OKF truth", Knowledge Catalog compatible OKF bundles, top-level URI/disclosure recall metadata, or agent-readable memory documents that will be vectorized by zvec. This skill teaches the Raw Inbox workflow, Knowledge Catalog OKF bundle layout, and exact Markdown/YAML shape expected by the local okf-rag parser. Trigger it even when the user casually asks to整理/organize a feature, subsystem, workflow, architecture area, or project memory; multi-concept topics should become a folder with index.md and concept files, not one monolithic Markdown file.
 ---
 
 # OKF-RAG OKF Format
@@ -13,12 +13,6 @@ Before creating or restructuring OKF content, read the bundled reference:
 
 ```text
 references/knowledge-catalog-okf-spec.md
-```
-
-If the bundled reference is missing in a development checkout, read this local source of truth instead:
-
-```text
-E:\knowledge-catalog\okf\SPEC.md
 ```
 
 Treat the Knowledge Catalog OKF spec as the structural source of truth. This skill adds OKF-RAG retrieval fields, but it should not override the OKF bundle model.
@@ -34,7 +28,224 @@ Use the MCP response instead:
 - Treat `hits[].source_path` as the authoritative concept entry point.
 - If a hit is inside a folder bundle, inspect the parent folder's `index.md` directly for progressive disclosure.
 - If the first query is too narrow, run another `okf_rag_query` with better natural-language terms instead of switching to shell text search.
+- Use `okf_rag_relationships` with a canonical ID, exact title, URI, or alias to inspect outgoing relations and incoming backlinks through MCP.
 - Use shell only for targeted operations after MCP has identified a path: reading a specific known file, listing a specific known folder, creating/editing files, or debugging MCP/index availability.
+
+## Raw Markdown Inbox
+
+When a daemon owns a topic, treat Raw Markdown as input and the published OKF bundle as generated output.
+
+Use this stable mapping:
+
+```text
+okf-rag-workspace/raw/<topic-slug>/     # Agent/user input
+okf-rag-workspace/okfs/<topic-slug>/    # Reconciled OKF output
+```
+
+Start one background daemon per topic from the project root. When `--source` is omitted, the daemon creates and recursively watches the default Raw Inbox:
+
+```powershell
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js start --bundle <topic-slug>
+```
+
+Before starting an LLM-backed daemon, configure the project-local secret file:
+
+```text
+.okf-rag/llmwiki.env
+```
+
+Use `.okf-rag/llmwiki.env.example` as the template. The pipeline, daemon, and stream probe load the file automatically; explicit process environment variables override it. Keep API keys only in this Git-ignored file or the process environment, never in Markdown, command arguments, logs, skill files, `AGENTS.md`, or `CLAUDE.md`.
+
+Before adding a Raw Markdown file:
+
+1. Run `node okf-rag-workspace/tools/okf_llmwiki_daemon.js status --bundle <topic-slug> --json`.
+2. Confirm `projectEnv.exists` is true and `projectEnv.configuredKeys` includes the provider, model, and required credential key names. Values are intentionally never returned.
+3. Confirm `running` is true and `inbox` points to `okf-rag-workspace/raw/<topic-slug>/`.
+4. If it is not running, start it with the command above and check status again.
+5. Create or edit a descriptive lowercase kebab-case `.md` file in that inbox. Raw files do not need OKF frontmatter; preserve headings, code, evidence paths, and source links that help llmwiki extract concepts.
+6. Wait until status reports `state.status: idle` and `state.lastRun.status: succeeded`.
+7. Query the result through OKF-RAG MCP. Do not repeat the lookup with shell corpus search.
+
+Adding, changing, or deleting a `.md` file in the inbox triggers a debounced pipeline pass. The daemon synchronizes Raw Markdown into llmwiki sources, compiles candidate concepts, reconciles ownership and duplicates, writes directed wiki relationships, validates and atomically publishes `okfs/<topic-slug>/`, refreshes navigation indexes, and runs Rust ingest. It also compares the published bundle with the sync manifest; deleting the topic directory, index, or a managed output queues automatic recovery. A successful run therefore makes the new knowledge queryable without a manual ingest command.
+
+Do not manually edit daemon-managed files under `okfs/<topic-slug>/`; a later reconciliation may replace them. Put corrections in the Raw Markdown or `.okf-rag/INSTRUCTIONS.md`. Directly author files under `okfs/` only for explicitly user-managed concepts that are outside a daemon-owned bundle.
+
+Use explicit `--source <file-or-directory>` only when importing an existing source location instead of the default inbox. Do not combine `--source` and `--inbox`.
+
+## Auto Generation And Dedup Workflow
+
+For automatic OKF generation, use `llm-wiki-compiler` as a candidate producer instead of treating its wiki directory as final truth. Let llmwiki extract semantic proposals. The OKF reconciler owns the published file set: it reads llmwiki source-to-concept state, prunes stale managed concepts, performs conservative exact dedupe, generates standard Markdown relationships, validates a staged bundle, and atomically publishes it. Rust `okf-rag` then consumes the reconciled Markdown through local ingest.
+
+Use this bridge command when available:
+
+```powershell
+node okf-rag-workspace/tools/okf_pipeline.js --source <markdown-file-or-directory> --bundle <topic-slug>
+```
+
+The bridge keeps llmwiki's project and export state under `.okf-rag/`, syncs the exported OKF bundle into:
+
+```text
+okf-rag-workspace/okfs/<topic-slug>/
+```
+
+and runs Rust ingest unless `--no-ingest` is passed. The reconciler generates an OKF v0.1 `index.md` at each topic bundle root and refreshes `okfs/index.md` as a deterministic catalog of bundles. It does not create `okf-rag-workspace/index.md`, because that directory also contains runtime artifacts rather than one OKF bundle.
+
+For Unity/U3D projects that need the prepared OKF-RAG workspace copied after generation, pass an explicit mirror target:
+
+```powershell
+node okf-rag-workspace/tools/okf_pipeline.js --source <markdown-file-or-directory> --bundle <topic-slug> --mirror-workspace F:\path\to\target-project\okf-rag-workspace
+```
+
+When mirroring, build the Rust release first if `okf-rag-workspace/bin` is missing. The bridge copies `okf-rag.exe` and required DLLs from `target/release` before copying the workspace.
+
+Use `okf_maintain` after publication for validation or explicit manual maintenance. Normal generated links are written during staged publication so they are part of the same atomic generation.
+
+For local Markdown input, the pipeline writes llmwiki `sources/*.md` directly according to `SOURCES_CONTRACT.md`. Source manifest v2 records adapter type, stable source-instance identity, raw and compiler hashes, file ownership, observed timestamps, and deletion propagation. Use `--stage-only` when validating this first stage without making LLM calls. Read `.okf-rag/INSTRUCTIONS.md` when present; it is project-owned control metadata and must not be published as an OKF concept.
+
+The pipeline keeps a persistent Node 24 + llm-wiki-compiler runtime under `.okf-rag/llmwiki-runtime/`. For `--provider claude-agent`, require `claude auth status` to report `loggedIn: true`; otherwise tell the user to run `claude auth login` before starting compile or daemon mode.
+
+For an OpenAI-compatible endpoint that only accepts streamed chat completions, require `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `LLMWIKI_MODEL`, and `LLMWIKI_STREAM_ONLY_OPENAI=true` in `.okf-rag/llmwiki.env` or the explicit process environment. Run `node okf-rag-workspace/tools/openai_stream_adapter.js --probe` first; both text streaming and streamed function/tool calls must pass. Never put the API key in command-line arguments or generated Markdown.
+
+For a long-running OKF producer, use the OKF-RAG daemon instead of llmwiki's native `watch` alone. Native `llmwiki watch` recompiles `wiki/`, but it does not export OKF, sync `okf-rag-workspace/okfs`, run Rust ingest, or mirror the prepared workspace.
+
+Foreground daemon:
+
+```powershell
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js run --bundle <topic-slug>
+```
+
+Background daemon:
+
+```powershell
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js start --bundle <topic-slug>
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js status --bundle <topic-slug>
+node okf-rag-workspace/tools/okf_llmwiki_daemon.js stop --bundle <topic-slug>
+```
+
+With no explicit source, the daemon watches `okf-rag-workspace/raw/<topic-slug>/`. The daemon reruns the same bridge loop on Markdown changes and self-recovers missing or partially deleted managed output. On normal MCP startup, after `tools/list` has been flushed, Rust scans raw topic folders and idempotently starts these daemons in the background. Background mode uses a supervisor that restarts a crashed worker. PID, logs, source paths, inbox, heartbeat, pending work, pipeline stage, duration, published-bundle health, and last error live under `.okf-rag/llmwiki-daemon/` and are returned by `status --json`.
+
+Successful publication stores the five most recent rollback snapshots under `.okf-rag/generations/<topic-slug>/`. Use `node okf-rag-workspace/tools/okf_generation.js list --bundle <topic-slug>` and `rollback --bundle <topic-slug> --generation <id>` when a generated concept set needs to be restored.
+
+When the user asks to generate OKF from a source repository, feature area, agent session, raw notes, or an existing document set, treat generation as a proposal-to-truth pipeline:
+
+1. Discover the target topic and source evidence.
+2. Check existing OKF memory before writing.
+3. Convert evidence into candidate concepts.
+4. Deduplicate candidates against existing concepts.
+5. Write only the accepted concepts under `okf-rag-workspace/okfs/`.
+6. Generate or refresh the topic bundle's versioned `index.md` and the `okfs/index.md` catalog.
+7. Run ingest, or when the source came through a running topic daemon, verify its successful status because the daemon already ingests after publication.
+
+Do not create `okf-rag-workspace/index.md` just because generation ran. Topic bundle indexes are required for multi-concept bundles, and `okfs/index.md` may be generated as a progressive-disclosure catalog.
+
+Use this local maintenance command when available:
+
+```powershell
+node okf-rag-workspace/tools/okf_maintain.js --root .
+```
+
+It reports malformed concept files and likely duplicate OKFs. To refresh topic-folder indexes after writing concept files:
+
+```powershell
+node okf-rag-workspace/tools/okf_maintain.js --root . --write-index
+```
+
+Use `--root-index` with `--write-index` when manual maintenance should also refresh `okfs/index.md`.
+
+To weave OKF concepts into a wiki-like graph, generate related-concept links after writing or merging concepts:
+
+```powershell
+node okf-rag-workspace/tools/okf_maintain.js --root . --write-links --write-index
+```
+
+The link generator should create Obsidian-compatible wikilinks between concept documents plus structured relation metadata for Rust/zvec. Relations are directed and carry a predicate, confidence, and evidence references. It should prefer durable evidence:
+
+- Exact title mentions in another concept's body or description.
+- Existing Markdown links and the sentence around each link.
+- Exact title mentions with a relationship verb such as depends on, uses, calls, produces, updates, validates, or publishes to.
+- Shared source ownership may raise confidence but must not create a relation by itself.
+
+Do not automatically add a reverse semantic edge. Always publish a navigation backlink on the target document, but keep it in `inbound_relations`; add an inverse outbound relation only when the target concept independently contains evidence for it.
+
+Write generated links in a clearly marked `## Related Concepts` block so the section can be refreshed safely:
+
+```markdown
+## Related Concepts
+
+<!-- okf-rag:auto-links:start -->
+### Outgoing
+
+- [[other-concept|Other Concept]] - depends on
+
+### Backlinks
+
+- [[upstream-concept|Upstream Concept]] - incoming: produces
+<!-- okf-rag:auto-links:end -->
+```
+
+This block gives Obsidian, agents, and humans a traversable two-way wiki surface while keeping semantic direction explicit and the generated region replaceable. Avoid rewriting prose inline unless the user explicitly asks for inline wiki-link insertion; inline rewrites can damage evidence wording and code blocks.
+
+### Candidate Shape
+
+Before writing files, model each generated concept as a candidate with these fields:
+
+```yaml
+type: Reference
+title: <human readable concept title>
+description: <one sentence summary>
+resource: okf://<stable-domain>/<stable-topic>/<stable-concept>
+tags: [okf, <domain>, <topic>]
+timestamp: <ISO 8601 datetime>
+uri: okf://<stable-domain>/<stable-topic>/<stable-concept>
+disclosure: When <specific future-agent situation where this memory should be recalled>.
+```
+
+Keep the body tied to evidence. Prefer `## Details`, `## Evidence`, `# Citations`, and `## Retrieval Notes` when they help. Avoid unsourced claims. If an LLM extracts a relationship, treat it as a candidate relationship until there is source evidence or a clear Markdown link context.
+
+### Dedup Rules
+
+Use a two-stage dedup check.
+
+Strong duplicate signals:
+
+- Same non-empty `uri`.
+- Same non-empty `resource`.
+- Same content hash or same generated canonical file path.
+- Same title, type, and evidence path set.
+
+Review duplicate signals:
+
+- Same normalized title and similar type.
+- High semantic similarity but different evidence.
+- Same concept appears under a sibling topic folder.
+- New candidate is narrower than an existing concept and can become a section or link instead.
+
+Merge policy:
+
+- Preserve existing frontmatter keys that are not being intentionally updated.
+- Add new evidence paths, citations, and links instead of replacing the whole body.
+- Prefer one canonical concept plus links from related concepts over duplicated summaries.
+- If two concepts have different `resource` or `uri`, do not auto-merge unless the evidence proves they are the same thing.
+- Never delete user-authored OKF files during generation unless the user explicitly asks for destructive cleanup.
+
+### File Placement
+
+For one atomic concept, use one concept file:
+
+```text
+okf-rag-workspace/okfs/<concept-slug>.md
+```
+
+For a subsystem, workflow, integration, feature, code area, or any multi-fact topic, write a bundle folder:
+
+```text
+okf-rag-workspace/okfs/<topic-slug>/
+├── index.md
+├── overview.md
+└── <focused-concept>.md
+```
+
+Generate `index.md` from accepted child concept frontmatter. Do not put concept truth into `index.md`; it is navigation only and is skipped by OKF-RAG ingest.
 
 ## Source Of Truth
 
@@ -91,9 +302,13 @@ Choose concept files from the evidence. Do not invent empty sections just to mat
 
 `index.md` is required for multi-concept folders because it gives progressive disclosure. It is not concept truth and is skipped by OKF-RAG ingest.
 
-Write folder `index.md` files with no YAML frontmatter unless the user explicitly asks for bundle metadata. Use this shape:
+Write the topic bundle root `index.md` with the OKF version declaration. Nested directory indexes have no frontmatter. Use this shape:
 
 ```markdown
+---
+okf_version: "0.1"
+---
+
 # Resource Hot Update YooAsset
 
 * [Overview](overview.md) - Scope, vocabulary, and entry points for the resource hot update system.
@@ -117,7 +332,7 @@ references/knowledge-catalog-okf-spec.md
 - `title`, `description`, `resource`, `tags`, and `timestamp` are recommended.
 - Extra producer-defined keys are allowed and should be preserved.
 - The body is standard Markdown. Prefer headings, lists, tables, and fenced code blocks over loose prose.
-- Use standard Markdown links for relationships between concepts.
+- Use Obsidian `[[target-file|Display Title]]` links in generated relationship blocks. Keep `outbound_relations` and `inbound_relations` as the machine-readable direction contract.
 - Use `# Citations` when the body makes sourced claims.
 
 Conformance checklist:
@@ -300,7 +515,7 @@ Avoid putting all knowledge into `index.md`; it is reserved for navigation and i
 
 Avoid collapsing a subsystem, workflow, or feature area into one large Markdown file when the evidence naturally contains multiple concepts. Use a folder with an `index.md` and focused concept files.
 
-Avoid absolute local machine paths in reusable memory. Prefer relative workspace paths or stable URIs.
+Never publish host absolute paths inside OKF Markdown, including `source_refs`, reference frontmatter, evidence blocks, or generated link metadata. Concept `source_refs` should point to bundle-local `references/` documents with relative paths; source mirror documents may retain portable `okf-source://` URIs. Fail publication when a Windows drive path, UNC path, or absolute `file:///` URI survives staging.
 
 Avoid claiming a benchmark is proven unless the OKF names the data, command, metric, and expected output.
 
